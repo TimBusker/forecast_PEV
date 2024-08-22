@@ -51,8 +51,8 @@ indicator='efi'
 seasons=['summer', 'winter', 'aut', 'spring']
 
 p_thresholds=["5RP","10RP"]
-day_month='21_08'
-CL_config= "major"
+day_month='22_08'
+CL_config= "minor"
 lead_times = ["1 days", "2 days", "3 days", "4 days", "5 days"]
 shift = 1  # then 95/2. was 1?
 """
@@ -76,7 +76,7 @@ lat_slice = slice(lon_lat_box[3], lon_lat_box[2])  # in case of area selection
 os.chdir(path_base)
 
 quality_mask = xr.open_dataset(
-    path_base + "/quality_mask_%s.nc" % resolution
+    path_base + "/quality_mask_025.nc" #025 degree
 )  # includes land-sea and X% nan criteria
 
 ############################################################# START LOOP  ############################################################
@@ -94,13 +94,14 @@ for p_threshold in p_thresholds:
         # sum cont and cont_metrics_merged if season is not the first in the list of variable seasons
         if season == seasons[0]: # if first season, just load the cont metrics
             cont_metrics_merged = cont.copy()
+            print('first season, %s , loaded'%(season))
         else: # if not the first season, sum cont and cont_metrics_merged 
             cont_metrics_merged = cont_metrics_merged.fillna(0) + cont.fillna(0)
-
+            print('season %s added'%(season))
     # quality mask 
+    cont_metrics_merged=cont_metrics_merged.where(cont_metrics_merged.n_events > 0, np.nan)
     cont_metrics_merged = cont_metrics_merged.where(quality_mask.rr == 0, np.nan)
     # save
-    cont_metrics_merged.to_netcdf(path_verif+"/cont_metrics_merged_seasonal_%s" %(file_accessor))
     print(f"cont_metrics_merged_seasonal_{file_accessor} saved")
     Fval_merged = xr.Dataset()
     Fval_area_merged = xr.Dataset()
@@ -121,10 +122,18 @@ for p_threshold in p_thresholds:
         time_steps_total = hits+misses+false_alarms+correct_negatives
         event_count = hits+misses
 
+
+
+        event_count.isel(ew_threshold=2).plot(vmin=0, vmax=10)
+        plt.show()
+        time_steps_total.isel(ew_threshold=2).plot()
+        cont.correct_negatives.isel(lead=2).isel(ew_threshold=2).plot()
+        plt.show()
+
         time_steps_total = time_steps_total.where(event_count > 0, np.nan)
         Climfreq = (event_count / time_steps_total)  # Ratio of event time steps compared to all time steps in rainfall dataset
 
-        print("average climfreq is %s" % (Climfreq.mean().values.round(5)))
+        #print("average climfreq is %s" % (Climfreq.mean().values.round(5)))
 
         # mask areas with 0 obs
         hits = hits.where(event_count > 0, np.nan)
@@ -135,7 +144,7 @@ for p_threshold in p_thresholds:
 
         ew_thresholds=hits.ew_threshold.values
 
-    
+
 
         c_counter = 0
         Fval_merged_CL = xr.Dataset()
@@ -285,7 +294,8 @@ for p_threshold in p_thresholds:
             )
             ts_total_t = ts_total_a.sum(dim=["latitude", "longitude"])
             Climfreq_t = (hits_t + misses_t) / ts_total_t
-
+            print("climfreq=%s"%(Climfreq_t))
+        
             FAR_a = false_alarms_t / (
                 false_alarms_t + correct_negatives_t
             )  # area-aggregated FAR. false alarms+correct_negatives=ts_total
@@ -361,12 +371,20 @@ for p_threshold in p_thresholds:
 
     # attach n_events as map as variable
     n_events_a = event_count.sel(longitude=lon_slice, latitude=lat_slice)
-
     Fval_area_merged = Fval_area_merged.assign(n_events=n_events_a)
     # attach n_events as attribute
     Fval_area_merged.attrs["n_events"] = (hits_t + misses_t).values
     Fval_area_merged.attrs["lon_slice"] = str(lon_slice)
     Fval_area_merged.attrs["lat_slice"] = str(lat_slice)
+
+
+    ########################################### only keep pixels with an event ############################################
+    Fval_merged = Fval_merged.where(event_count > 0, np.nan)
+    Fval_area_merged = Fval_area_merged.where(event_count_a > 0, np.nan)
+    #cont_metrics_merged = cont_metrics_merged.where(event_count > 0, np.nan) --> event count filer can only be done on Fval maps! Otherwise the cont metrics will be wrong.
+
+
+
 
     os.chdir(path_verif)
 

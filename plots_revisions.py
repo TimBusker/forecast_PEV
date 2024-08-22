@@ -5,10 +5,7 @@ Created on Mon Aug 31 17:04:50 2020
 
 
 """
-%reset
 
-
-## brainstorm hans 
 """
 - 1/5 jaar events zijn bijna allemaal in zomer, dus andere maanden eruit filteren. 
 - Hoe gaan we om met n=1 per pixel. Ruimtelijk poolen? Maar dan zitten we met onhafhneklijkheid 
@@ -16,6 +13,9 @@ Created on Mon Aug 31 17:04:50 2020
 -  
 - 
 """
+# Reset all variables
+%reset
+
 
 # %%
 import sys
@@ -47,6 +47,7 @@ import matplotlib.colorbar as mcolorbar
 import pandas as pd
 
 
+
 # %%
 ###############################################################################################################################
 ##################################################### Setup ###################################################################
@@ -69,11 +70,11 @@ path_return_periods = "/scistor/ivm/tbr910/precip_analysis/return_periods_europe
 
 ##################################### Config  #####################################
 # General config
-indicator = "sot"  # efi, sot (or ES?)
+indicator = "efi"  # efi, sot (or ES?)
 shift = 1
 resolution = "025"
-day_month = "21_08"  # day and month seperated by an underscore
-save_annotation = "_summer" # extra desciption that was added to the input files in PEV.py (optional)
+day_month = "22_08"  # day and month seperated by an underscore
+save_annotation = "_seasonal_threshold" # extra desciption that was added to the input files in PEV.py (optional)
 # precipitation threshold
 """
 Define precipitation threshold, options:
@@ -82,7 +83,7 @@ Define precipitation threshold, options:
 - Fixed rainfall amounts (mm): 40, 60, 90 (method var: threshold_method, not implemented yet?)
 - Fixed return periods: 5RP, 10RP, 20RP (method var: return_periods)
 """
-p_threshold = "10RP"
+p_threshold = "5RP"
 
 
 # C_L

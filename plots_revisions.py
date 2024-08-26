@@ -70,11 +70,14 @@ path_return_periods = "/scistor/ivm/tbr910/precip_analysis/return_periods_europe
 
 ##################################### Config  #####################################
 # General config
-indicator = "efi"  # efi, sot (or ES?)
+indicator = "sot"  # efi, sot (or ES?)
 shift = 1
 resolution = "025"
-day_month = "22_08"  # day and month seperated by an underscore
-save_annotation = "_seasonal_threshold" # extra desciption that was added to the input files in PEV.py (optional)
+day_month = "26_08"  # day and month seperated by an underscore
+save_annotation = "_summer" # extra desciption that was added to the input files in PEV.py (optional)
+
+# plot config 
+log_axis=True # if True, plot the x-axis on a log scale
 # precipitation threshold
 """
 Define precipitation threshold, options:
@@ -487,8 +490,12 @@ label_fontsize = 25
 x_ticks = np.arange(0, 0.7, 0.2)  # [0.0,0.4,0.8]
 y_ticks = np.arange(0.2, 0.8, 0.2)  # [0.2, 0.6, 1.0] 0.2,1.1,0.2
 y_lim = 0.75
-x_lim = 0.6
-tick_size = 20
+
+if log_axis==True:
+    x_lim = [0.0, 1]
+else:
+    x_lim = [0, 0.6]
+tick_size = 15
 title_size = 30
 linewidth = 0.5
 
@@ -544,14 +551,22 @@ def plot_data(
     lead = str(Fval_lead.lead.values)
     ax.set_title("lead=%s" % (lead), size=title_size)
     ax.set_xlabel(label_x, size=label_x_size, weight="bold")
-    ax.set_xlim([0, x_lim])
+    ax.set_xlim(x_lim)
     ax.set_ylim([0, y_lim])
-    ax.set_xticks(x_ticks)
+    #ax.set_xticks(x_ticks)
     ax.set_yticks(y_ticks)
     ax.tick_params(axis="both", which="major", labelsize=tick_size)
     ax.tick_params(axis="both", which="minor", labelsize=tick_size)
 
+    if log_axis==True:
+        # Set the x-axis to a logarithmic scale
+        ax.set_xscale('log')
 
+        # Set the x-ticks and x-tick labels
+        x_ticks = [0.01, 0.02, 0.03, 0.05, 0.1, 0.2, 0.3, 0.5, 0.7, 1]
+        ax.set_xticks(x_ticks)
+        ax.set_xticklabels([str(tick) for tick in x_ticks])
+        ax.tick_params(axis='x', rotation=45)
 # Call the function for each subplot
 plot_data(
     ax1,
@@ -676,6 +691,8 @@ cb.set_ticks([min(thresholds_plot)] + middle_values + [max(thresholds_plot)])
 # legend and show/save
 # ax5.legend(fontsize=label_fontsize, loc='lower right', bbox_to_anchor=(2, 0))
 # plt.savefig(path_figs+'/C_L.pdf', bbox_inches='tight')
+
+
 plt.show()
 
 
@@ -811,8 +828,12 @@ lead_times = Fval_efi.lead.values
 fig, axs = plt.subplots(1, 2, figsize=(10, 5), sharey=True)
 # adjust widthspace
 plt.subplots_adjust(wspace=0.2)
-x_lim = 0.6
-y_lim = 0.8
+if log_axis==True:
+    x_lim = [0.0, 1]
+else:
+    x_lim = [0, 0.6]
+
+y_lim = 1
 # Custom color palette
 colors = sns.color_palette("mako", 5)
 
@@ -862,10 +883,10 @@ for ax, Fval, title, n_hits, n_fa, n_misses, n_cn, hr, far, ew_threshold in zip(
 
     ax.set_xlabel("Action costs / prevented damage (C/L)", size=13, weight="bold")
     ax.set_ylabel("Forecast Value (PEV)", size=13, weight="bold")
-    ax.set_xlim([0, x_lim])
+
     ax.set_ylim([0, y_lim])
-    ax.set_xticks(np.arange(0, 0.7, 0.2))
     ax.set_yticks(np.arange(0.2, 0.8, 0.2))
+
     ax.tick_params(
         axis="both",
         which="both",
@@ -875,9 +896,21 @@ for ax, Fval, title, n_hits, n_fa, n_misses, n_cn, hr, far, ew_threshold in zip(
         colors="black",
     )
 
+    if log_axis==True:
+        # Set the x-axis to a logarithmic scale
+        ax.set_xscale('log')
+
+        # Set the x-ticks and x-tick labels
+        x_ticks = [0.01, 0.02, 0.03, 0.05, 0.1, 0.2, 0.3, 0.5, 0.7, 1]
+        ax.set_xticks(x_ticks)
+        ax.set_xticklabels([str(tick) for tick in x_ticks])
+        # rotate x-tick labels
+        ax.tick_params(axis='x', rotation=45)
+    else: 
+        ax.set_xticks(np.arange(0, 0.7, 0.2))
     # Add minor ticks
     # ax.minorticks_on()
-
+    ax.set_xlim(x_lim)
     # Add grid for both major and minor ticks
     ax.grid(True, which="both", linestyle="--", linewidth=0.7, alpha=0.6, color="black")
 

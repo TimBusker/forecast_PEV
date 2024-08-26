@@ -26,6 +26,12 @@ import matplotlib.lines as mlines
 import matplotlib.colors as mcolors
 import matplotlib.colorbar as mcolorbar
 import pandas as pd
+
+# import all functions from function.py (in home dir)
+#sys.path.append("/scistor/ivm/tbr910/")
+#from functions import *
+#season='aut'
+#rename_files("/scistor/ivm/tbr910/precip_analysis/verif_files", f"S1{season}",f"S1_{season}", season)
 # %%
 ###############################################################################################################################
 ##################################################### Setup ###################################################################
@@ -47,11 +53,13 @@ path_figs = home + "precip_analysis/figures/revisions/"
 path_return_periods = "/scistor/ivm/tbr910/precip_analysis/return_periods_europe"
 
 
-indicator='efi'
+indicator='sot'
 seasons=['summer', 'winter', 'aut', 'spring']
 
-p_thresholds=["5RP","10RP"]
-day_month='22_08'
+#seasons= [i+'_WHOLE_PERIOD' for i in seasons]
+
+p_thresholds=["5RP"] # ","10RP"
+day_month='26_08'
 CL_config= "minor"
 lead_times = ["1 days", "2 days", "3 days", "4 days", "5 days"]
 shift = 1  # then 95/2. was 1?
@@ -67,8 +75,6 @@ lon lat boxes
 lon_lat_box = [3.5, 7.8, 48, 52]  # [lon_min, lon_max, lat_min, lat_max]
 lon_slice = slice(lon_lat_box[0], lon_lat_box[1])  # in case of area selection
 lat_slice = slice(lon_lat_box[3], lon_lat_box[2])  # in case of area selection
-
-
 
 #%%
 ##################################################################################### Seasonal PEV Calculation #####################################################################################
@@ -124,23 +130,17 @@ for p_threshold in p_thresholds:
 
 
 
-        event_count.isel(ew_threshold=2).plot(vmin=0, vmax=10)
-        plt.show()
-        time_steps_total.isel(ew_threshold=2).plot()
-        cont.correct_negatives.isel(lead=2).isel(ew_threshold=2).plot()
-        plt.show()
-
-        time_steps_total = time_steps_total.where(event_count > 0, np.nan)
+        #time_steps_total = time_steps_total.where(event_count > 0, np.nan)
         Climfreq = (event_count / time_steps_total)  # Ratio of event time steps compared to all time steps in rainfall dataset
 
         #print("average climfreq is %s" % (Climfreq.mean().values.round(5)))
 
         # mask areas with 0 obs
-        hits = hits.where(event_count > 0, np.nan)
-        false_alarms= false_alarms.where(event_count > 0, np.nan)
-        misses= misses.where(event_count > 0, np.nan)
-        correct_negatives= correct_negatives.where(event_count > 0, np.nan)
-        Climfreq = Climfreq.where(event_count > 0, np.nan)
+        #hits = hits.where(event_count > 0, np.nan)
+        #false_alarms= false_alarms.where(event_count > 0, np.nan)
+        #misses= misses.where(event_count > 0, np.nan)
+        #correct_negatives= correct_negatives.where(event_count > 0, np.nan)
+        #Climfreq = Climfreq.where(event_count > 0, np.nan)
 
         ew_thresholds=hits.ew_threshold.values
 
@@ -173,11 +173,11 @@ for p_threshold in p_thresholds:
         )  # EQUAL TO FAR! is that true?
         ## hit rate
         hit_rate = hits/(hits + misses)
-        hit_rate = hit_rate.where(event_count > 0, np.nan)
+        hit_rate = hit_rate#.where(event_count > 0, np.nan)
 
         ## False alarm rate
         FAR = false_alarms / (false_alarms + correct_negatives)
-        FAR = FAR.where(event_count > 0, np.nan)
+        FAR = FAR#.where(event_count > 0, np.nan)
 
         # rename the hits, misses, false alarms, correct negatives data-arrays
         hits = hits.rename("hits")
@@ -265,13 +265,13 @@ for p_threshold in p_thresholds:
             event_count_a = event_count.sel(longitude=lon_slice, latitude=lat_slice)
             # calculate contingency metri
             hits_a = hits.sel(longitude=lon_slice, latitude=lat_slice)
-            hits_a = hits_a.where(event_count_a > 0, np.nan)
+            #hits_a = hits_a.where(event_count_a > 0, np.nan)
             misses_a = misses.sel(longitude=lon_slice, latitude=lat_slice)
-            misses_a = misses_a.where(event_count_a > 0, np.nan)
+            #misses_a = misses_a.where(event_count_a > 0, np.nan)
             false_alarms_a = false_alarms.sel(
                 longitude=lon_slice, latitude=lat_slice
             )
-            false_alarms_a = false_alarms_a.where(event_count_a > 0, np.nan)
+            #false_alarms_a = false_alarms_a.where(event_count_a > 0, np.nan)
             correct_negatives_a = correct_negatives.sel(
                 longitude=lon_slice, latitude=lat_slice
             )
@@ -281,9 +281,9 @@ for p_threshold in p_thresholds:
             ts_total_a = time_steps_total.sel(
                 longitude=lon_slice, latitude=lat_slice
             )
-            ts_total_a = ts_total_a.where(event_count_a > 0, np.nan)
+            #ts_total_a = ts_total_a.where(event_count_a > 0, np.nan)
             Climfreq_a = Climfreq.sel(longitude=lon_slice, latitude=lat_slice)
-            Climfreq_a = Climfreq_a.where(event_count_a > 0, np.nan)
+            #Climfreq_a = Climfreq_a.where(event_count_a > 0, np.nan)
 
             # sum stats over area
             hits_t = hits_a.sum(dim=["latitude", "longitude"])
@@ -299,9 +299,9 @@ for p_threshold in p_thresholds:
             FAR_a = false_alarms_t / (
                 false_alarms_t + correct_negatives_t
             )  # area-aggregated FAR. false alarms+correct_negatives=ts_total
-            FAR_a = FAR_a.where(event_count_a > 0, np.nan)
+            #FAR_a = FAR_a.where(event_count_a > 0, np.nan)
             hit_rate_a = hits_t / (hits_t + misses_t)  # area-aggregated hit rate.
-            hit_rate_a = hit_rate_a.where(event_count_a > 0, np.nan)
+            #hit_rate_a = hit_rate_a.where(event_count_a > 0, np.nan)
             Fval_area = (
                 np.minimum(C_L, Climfreq_t)
                 - (FAR_a * (1 - Climfreq_t) * C_L)
@@ -390,6 +390,10 @@ for p_threshold in p_thresholds:
 
     ########################################### Save all files (Fval whole Europe, Fval selected area, and contingency metrics) ############################################
     save_string = f'{indicator}_{day_month}_{str(p_threshold).replace(".","")}_S{shift}_seasonal_threshold.nc'
+    
+    if 'WHOLE_PERIOD' in season:# add whole period to the end of the save string. dont replace but add
+        save_string=save_string[:-3]
+        save_string=save_string+'_WHOLE_PERIOD.nc'
     print(f"saving nc files with string {save_string}")
     # save files
     Fval_merged.to_netcdf(f"Fval_merged_{save_string}")

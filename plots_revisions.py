@@ -74,7 +74,7 @@ indicator = "sot"  # efi, sot (or ES?)
 shift = 1
 resolution = "025"
 day_month = "26_08"  # day and month seperated by an underscore
-save_annotation = "_summer" # extra desciption that was added to the input files in PEV.py (optional)
+save_annotation = "_seasonal" # extra desciption that was added to the input files in PEV.py (optional)
 
 # plot config 
 log_axis=True # if True, plot the x-axis on a log scale
@@ -87,6 +87,7 @@ Define precipitation threshold, options:
 - Fixed return periods: 5RP, 10RP, 20RP (method var: return_periods)
 """
 p_threshold = "5RP"
+expected_CF= 1/(int(p_threshold.replace("RP",""))*365) # expected coverage factor for the return period
 
 
 # C_L
@@ -96,7 +97,10 @@ C_L_min = 0.02
 C_L_max = 0.18
 
 # file name strings
-file_accessor = f'{day_month}_{str(p_threshold).replace(".","")}_S{shift}{save_annotation}.nc'  # file accessor from the 'save_string' variable in PEV.py
+if 'seasonal' in save_annotation:
+    file_accessor = f'max_{day_month}_{str(p_threshold).replace(".","")}_S{shift}{save_annotation}.nc'  # takes already the max Fval file 
+else:
+    file_accessor = f'{day_month}_{str(p_threshold).replace(".","")}_S{shift}{save_annotation}.nc'  # file accessor from the 'save_string' variable in PEV.py
 save_name= f"{indicator}_{file_accessor}"  # save name for the figures
 ##################################### Load data #####################################
 os.chdir(path_verif)
@@ -216,9 +220,15 @@ print(
 ########################## Select the right C_L ratio ##########################
 if find_C_L_max == True:  #  Find and select max Fval
     if indicator == "efi":
-        Fval_plot = Fval_merged_efi.max(dim=("C_L", "ew_threshold")).Fval
+        if 'seasonal' in save_annotation:
+            Fval_plot = Fval_merged_efi.max(dim=("C_L")).Fval
+        else:
+            Fval_plot = Fval_merged_efi.max(dim=("C_L", "ew_threshold")).Fval
     elif indicator == "sot":
-        Fval_plot = Fval_merged_sot.max(dim=("C_L", "ew_threshold")).Fval
+        if 'seasonal' in save_annotation:
+            Fval_plot = Fval_merged_sot.max(dim=("C_L")).Fval
+        else:
+            Fval_plot = Fval_merged_sot.max(dim=("C_L", "ew_threshold")).Fval
 
 else:  # or select the Fval for a specific C_L ratio
     if indicator == "efi":
@@ -228,7 +238,9 @@ else:  # or select the Fval for a specific C_L ratio
         Fval_plot = Fval_merged_sot.copy()
 
     Fval_plot = Fval_plot.sel(C_L=C_L_best_estimate).Fval  # select the Fval for the C_L ratio we want to plot
-    Fval_plot = Fval_plot.max(dim="ew_threshold")  # select max Fval for this C_L ratio
+    
+    if 'seasonal' not in save_annotation:
+        Fval_plot = Fval_plot.max(dim="ew_threshold")  # only needed if the max is not already calculated in the merger_seasons.py script
 
 
 ########################## Plot parameters ##########################
@@ -451,249 +463,263 @@ plt.close()
 ########################################### Early-Warning Thresholds graph ####################################################
 ###############################################################################################################################
 
+if 'seasonal' not in save_annotation:
 
-if indicator == "efi":
-    Fval_plot = Fval_region_efi.copy()
+    if indicator == "efi":
+        Fval_plot = Fval_region_efi.copy()
 
-elif indicator == "sot":
-    Fval_plot = Fval_region_sot.copy()
-
-
-
-os.chdir(path_verif)
-###################### Retrieve thresholds for EFI and SOT ######################
-thresholds_plot = Fval_plot.ew_threshold.values.tolist()
-
-###################### Plotting parameters ######################
-fig = plt.figure(figsize=(20, 30))  # H,W
-
-# seaborn cool style
-sns.set_style("darkgrid", {"axes.facecolor": ".9"})
-
-gs = fig.add_gridspec(20, 20, wspace=3, hspace=1.5)
-ax1 = fig.add_subplot(gs[0:6, 0:6])  # Y,X
-ax2 = fig.add_subplot(gs[0:6, 6:12], sharey=ax1)
-ax3 = fig.add_subplot(gs[0:6, 12:18], sharey=ax1)
-ax4 = fig.add_subplot(gs[7:13, 0:6])
-ax5 = fig.add_subplot(gs[7:13, 6:12])
-
-plt.setp(ax2.get_yticklabels(), visible=False)
-plt.setp(ax3.get_yticklabels(), visible=False)
-plt.setp(ax5.get_yticklabels(), visible=False)
-# plt.setp(ax6.get_yticklabels(), visible=False)
-
-label_x = "Cost-loss ratio"
-label_y = "Potential economic value (PEV)"  # V$_{ECMWFseas5}$
-label_x_size = 25
-label_y_size = 25
-label_fontsize = 25
-x_ticks = np.arange(0, 0.7, 0.2)  # [0.0,0.4,0.8]
-y_ticks = np.arange(0.2, 0.8, 0.2)  # [0.2, 0.6, 1.0] 0.2,1.1,0.2
-y_lim = 0.75
-
-if log_axis==True:
-    x_lim = [0.0, 1]
-else:
-    x_lim = [0, 0.6]
-tick_size = 15
-title_size = 30
-linewidth = 0.5
-
-######################  Colormap ######################
-# Define the thresholds you want to include in the legend
-# legend_thresholds = [thresholds_plot[i] for i in [0, len(thresholds_plot)//4, len(thresholds_plot)//2, 3*len(thresholds_plot)//4, -1]]
-
-# get a list of rgb colors from yellow to orange to red, with length of the number of efi thresholds
-colors = colour.Color("yellow").range_to(colour.Color("red"), len(thresholds_plot))
-hex_colors = [color.hex for color in colors]
-
-cmap = mcolors.LinearSegmentedColormap.from_list("my_colormap", hex_colors)
+    elif indicator == "sot":
+        Fval_plot = Fval_region_sot.copy()
 
 
-###################### Generate the plot ######################
 
+    os.chdir(path_verif)
+    ###################### Retrieve thresholds for EFI and SOT ######################
+    thresholds_plot = Fval_plot.ew_threshold.values.tolist()
 
-# Define a function to plot the data
-def plot_data(
-    ax,
-    lead,
-    hex_colors,
-    thresholds_plot,
-    linewidth,
-    label_x,
-    label_x_size,
-    label_y,
-    label_y_size,
-    x_lim,
-    y_lim,
-    x_ticks,
-    y_ticks,
-    tick_size,
-    label_fontsize,
-):
-    Fval_lead = Fval_plot.isel(lead=lead)
-    Fval_lead = Fval_lead.mean(
-        dim=("latitude", "longitude")
-    )  # new, because before the PEV script already calculated the spatial average
-    C_L = Fval_lead.C_L.values
+    ###################### Plotting parameters ######################
+    fig = plt.figure(figsize=(20, 30))  # H,W
 
-    for ew_threshold in thresholds_plot:
-        Fval = Fval_lead.sel(ew_threshold=ew_threshold).Fval.values
+    # seaborn cool style
+    sns.set_style("darkgrid", {"axes.facecolor": ".9"})
 
-        ax.plot(
-            C_L,
-            Fval,
-            label="efi threshold= %s" % (str(ew_threshold)),
-            color=hex_colors[thresholds_plot.index(ew_threshold)],
-            linewidth=linewidth,
-        )
+    gs = fig.add_gridspec(20, 20, wspace=3, hspace=1.5)
+    ax1 = fig.add_subplot(gs[0:6, 0:6])  # Y,X
+    ax2 = fig.add_subplot(gs[0:6, 6:12], sharey=ax1)
+    ax3 = fig.add_subplot(gs[0:6, 12:18], sharey=ax1)
+    ax4 = fig.add_subplot(gs[7:13, 0:6])
+    ax5 = fig.add_subplot(gs[7:13, 6:12])
 
-    lead = str(Fval_lead.lead.values)
-    ax.set_title("lead=%s" % (lead), size=title_size)
-    ax.set_xlabel(label_x, size=label_x_size, weight="bold")
-    ax.set_xlim(x_lim)
-    ax.set_ylim([0, y_lim])
-    #ax.set_xticks(x_ticks)
-    ax.set_yticks(y_ticks)
-    ax.tick_params(axis="both", which="major", labelsize=tick_size)
-    ax.tick_params(axis="both", which="minor", labelsize=tick_size)
+    plt.setp(ax2.get_yticklabels(), visible=False)
+    plt.setp(ax3.get_yticklabels(), visible=False)
+    plt.setp(ax5.get_yticklabels(), visible=False)
+    # plt.setp(ax6.get_yticklabels(), visible=False)
+
+    label_x = "Cost-loss ratio"
+    label_y = "Potential economic value (PEV)"  # V$_{ECMWFseas5}$
+    label_x_size = 25
+    label_y_size = 25
+    label_fontsize = 25
+    x_ticks = np.arange(0, 0.7, 0.2)  # [0.0,0.4,0.8]
+    y_ticks = np.arange(0.2, 0.8, 0.2)  # [0.2, 0.6, 1.0] 0.2,1.1,0.2
+    y_lim = 0.75
 
     if log_axis==True:
-        # Set the x-axis to a logarithmic scale
-        ax.set_xscale('log')
+        x_lim = [0.0, 1]
+    else:
+        x_lim = [0, 0.6]
+    tick_size = 15
+    title_size = 30
+    linewidth = 0.5
 
-        # Set the x-ticks and x-tick labels
-        x_ticks = [0.01, 0.02, 0.03, 0.05, 0.1, 0.2, 0.3, 0.5, 0.7, 1]
-        ax.set_xticks(x_ticks)
-        ax.set_xticklabels([str(tick) for tick in x_ticks])
-        ax.tick_params(axis='x', rotation=45)
-# Call the function for each subplot
-plot_data(
-    ax1,
-    0,
-    hex_colors,
-    thresholds_plot,
-    linewidth,
-    label_x,
-    label_x_size,
-    label_y,
-    label_y_size,
-    x_lim,
-    y_lim,
-    x_ticks,
-    y_ticks,
-    tick_size,
-    label_fontsize,
-)
-plot_data(
-    ax2,
-    1,
-    hex_colors,
-    thresholds_plot,
-    linewidth,
-    label_x,
-    label_x_size,
-    label_y,
-    label_y_size,
-    x_lim,
-    y_lim,
-    x_ticks,
-    y_ticks,
-    tick_size,
-    label_fontsize,
-)
-plot_data(
-    ax3,
-    2,
-    hex_colors,
-    thresholds_plot,
-    linewidth,
-    label_x,
-    label_x_size,
-    label_y,
-    label_y_size,
-    x_lim,
-    y_lim,
-    x_ticks,
-    y_ticks,
-    tick_size,
-    label_fontsize,
-)
-plot_data(
-    ax4,
-    3,
-    hex_colors,
-    thresholds_plot,
-    linewidth,
-    label_x,
-    label_x_size,
-    label_y,
-    label_y_size,
-    x_lim,
-    y_lim,
-    x_ticks,
-    y_ticks,
-    tick_size,
-    label_fontsize,
-)
-plot_data(
-    ax5,
-    4,
-    hex_colors,
-    thresholds_plot,
-    linewidth,
-    label_x,
-    label_x_size,
-    label_y,
-    label_y_size,
-    x_lim,
-    y_lim,
-    x_ticks,
-    y_ticks,
-    tick_size,
-    label_fontsize,
-)
+    ######################  Colormap ######################
+    # Define the thresholds you want to include in the legend
+    # legend_thresholds = [thresholds_plot[i] for i in [0, len(thresholds_plot)//4, len(thresholds_plot)//2, 3*len(thresholds_plot)//4, -1]]
 
-# Set ylabel for ax4
-ax4.set_ylabel(label_y, size=label_y_size, weight="bold")
+    # get a list of rgb colors from yellow to orange to red, with length of the number of efi thresholds
+    colors = colour.Color("yellow").range_to(colour.Color("red"), len(thresholds_plot))
+    hex_colors = [color.hex for color in colors]
 
-# Create custom legend
-# legend_elements = [Line2D([0], [0], color=hex_colors[thresholds_plot.index(threshold)], lw=linewidth, label='efi threshold= %s'%(str(threshold))) for threshold in legend_thresholds]
-# ax5.legend(handles=legend_elements, fontsize=label_fontsize, loc='lower right', bbox_to_anchor=(2, 0))
+    cmap = mcolors.LinearSegmentedColormap.from_list("my_colormap", hex_colors)
 
-###################### Colorbar ######################
-cax = fig.add_axes(
-    [0.25, 0.33, 0.4, 0.02]
-)  # Adjust these values to position the colorbar
-norm = mcolors.Normalize(
-    vmin=min(thresholds_plot), vmax=max(thresholds_plot)
-)  # Normalize the colorbar
-cb = mcolorbar.ColorbarBase(
-    cax, cmap=cmap, norm=norm, orientation="horizontal"
-)  # Create the colorbar
-cb.set_label(
-    f"{indicator} Threshold", size=label_fontsize, weight="bold"
-)  # Set the label
-cb.ax.tick_params(labelsize=label_fontsize)  # Set tick label size
 
-# Set ticks at the minimum, maximum, and some middle thresholds
-middle_values = [
-    thresholds_plot[i]
-    for i in [
-        len(thresholds_plot) // 4,
-        len(thresholds_plot) // 2,
-        3 * len(thresholds_plot) // 4,
+    ###################### Generate the plot ######################
+
+
+    # Define a function to plot the data
+    def plot_data(
+        ax,
+        lead,
+        hex_colors,
+        thresholds_plot,
+        linewidth,
+        label_x,
+        label_x_size,
+        label_y,
+        label_y_size,
+        x_lim,
+        y_lim,
+        x_ticks,
+        y_ticks,
+        tick_size,
+        label_fontsize,
+    ):
+        Fval_lead = Fval_plot.isel(lead=lead)
+        Fval_lead = Fval_lead.mean(
+            dim=("latitude", "longitude")
+        )  # new, because before the PEV script already calculated the spatial average
+        C_L = Fval_lead.C_L.values
+
+        for ew_threshold in thresholds_plot:
+            Fval = Fval_lead.sel(ew_threshold=ew_threshold).Fval.values
+
+            ax.plot(
+                C_L,
+                Fval,
+                label="efi threshold= %s" % (str(ew_threshold)),
+                color=hex_colors[thresholds_plot.index(ew_threshold)],
+                linewidth=linewidth,
+            )
+
+        lead = str(Fval_lead.lead.values)
+        ax.set_title("lead=%s" % (lead), size=title_size)
+        #ax.set_xlabel(label_x, size=label_x_size, weight="bold")
+    # ax.set_xlim(x_lim)
+        ax.set_ylim([0, y_lim])
+        #ax.set_xticks(x_ticks)
+        ax.set_yticks(y_ticks)
+        ax.tick_params(axis="both", which="major", labelsize=tick_size)
+        ax.tick_params(axis="both", which="minor", labelsize=tick_size)
+        
+        if log_axis==True:
+            # Set the x-axis to a logarithmic scale
+            ax.set_xscale('log')
+
+            # Set the x-ticks and x-tick labels
+            x_ticks = [0.00001, 0.0001, 0.001, 0.01, 0.1,1]
+            
+            ax.set_xticks(x_ticks)
+            ax.set_xticklabels([str(tick) for tick in x_ticks])
+            # rotate x-tick labels
+            ax.tick_params(axis='x', rotation=45)
+            ax.grid(True, which="major", linestyle="--", linewidth=0.7, alpha=0.6, color="black")
+            ax.tick_params(
+                axis="both",
+                which="major",
+                direction="out",
+                length=6,
+                labelsize=13,
+                colors="black",
+        )
+            
+
+    # Call the function for each subplot
+    plot_data(
+        ax1,
+        0,
+        hex_colors,
+        thresholds_plot,
+        linewidth,
+        label_x,
+        label_x_size,
+        label_y,
+        label_y_size,
+        x_lim,
+        y_lim,
+        x_ticks,
+        y_ticks,
+        tick_size,
+        label_fontsize,
+    )
+    plot_data(
+        ax2,
+        1,
+        hex_colors,
+        thresholds_plot,
+        linewidth,
+        label_x,
+        label_x_size,
+        label_y,
+        label_y_size,
+        x_lim,
+        y_lim,
+        x_ticks,
+        y_ticks,
+        tick_size,
+        label_fontsize,
+    )
+    plot_data(
+        ax3,
+        2,
+        hex_colors,
+        thresholds_plot,
+        linewidth,
+        label_x,
+        label_x_size,
+        label_y,
+        label_y_size,
+        x_lim,
+        y_lim,
+        x_ticks,
+        y_ticks,
+        tick_size,
+        label_fontsize,
+    )
+    plot_data(
+        ax4,
+        3,
+        hex_colors,
+        thresholds_plot,
+        linewidth,
+        label_x,
+        label_x_size,
+        label_y,
+        label_y_size,
+        x_lim,
+        y_lim,
+        x_ticks,
+        y_ticks,
+        tick_size,
+        label_fontsize,
+    )
+    plot_data(
+        ax5,
+        4,
+        hex_colors,
+        thresholds_plot,
+        linewidth,
+        label_x,
+        label_x_size,
+        label_y,
+        label_y_size,
+        x_lim,
+        y_lim,
+        x_ticks,
+        y_ticks,
+        tick_size,
+        label_fontsize,
+    )
+
+    # Set ylabel for ax4
+    ax4.set_ylabel(label_y, size=label_y_size, weight="bold")
+
+    # Create custom legend
+    # legend_elements = [Line2D([0], [0], color=hex_colors[thresholds_plot.index(threshold)], lw=linewidth, label='efi threshold= %s'%(str(threshold))) for threshold in legend_thresholds]
+    # ax5.legend(handles=legend_elements, fontsize=label_fontsize, loc='lower right', bbox_to_anchor=(2, 0))
+
+    ###################### Colorbar ######################
+    cax = fig.add_axes(
+        [0.25, 0.33, 0.4, 0.02]
+    )  # Adjust these values to position the colorbar
+    norm = mcolors.Normalize(
+        vmin=min(thresholds_plot), vmax=max(thresholds_plot)
+    )  # Normalize the colorbar
+    cb = mcolorbar.ColorbarBase(
+        cax, cmap=cmap, norm=norm, orientation="horizontal"
+    )  # Create the colorbar
+    cb.set_label(
+        f"{indicator} Threshold", size=label_fontsize, weight="bold"
+    )  # Set the label
+    cb.ax.tick_params(labelsize=label_fontsize)  # Set tick label size
+
+    # Set ticks at the minimum, maximum, and some middle thresholds
+    middle_values = [
+        thresholds_plot[i]
+        for i in [
+            len(thresholds_plot) // 4,
+            len(thresholds_plot) // 2,
+            3 * len(thresholds_plot) // 4,
+        ]
     ]
-]
-cb.set_ticks([min(thresholds_plot)] + middle_values + [max(thresholds_plot)])
+    cb.set_ticks([min(thresholds_plot)] + middle_values + [max(thresholds_plot)])
 
 
-# legend and show/save
-# ax5.legend(fontsize=label_fontsize, loc='lower right', bbox_to_anchor=(2, 0))
-# plt.savefig(path_figs+'/C_L.pdf', bbox_inches='tight')
+    # legend and show/save
+    # ax5.legend(fontsize=label_fontsize, loc='lower right', bbox_to_anchor=(2, 0))
+    # plt.savefig(path_figs+'/C_L.pdf', bbox_inches='tight')
 
 
-plt.show()
+    plt.show()
 
 
 # %%
@@ -769,7 +795,7 @@ ew_max_efi = PEV_cont_efi.ew_threshold_max.values
 cont_max_efi = (
     cont_efi.sel(ew_threshold=ew_max_efi)
     .sel(lead=lead_cont)
-    .mean(dim=("latitude", "longitude"))
+    .sum(dim=("latitude", "longitude"))
 )  # before it was mean, now sum to get the total number of events
 
 n_fa_efi = float(cont_max_efi.false_alarms.values)  # false alarms
@@ -799,7 +825,7 @@ ew_max_sot = PEV_cont_sot.ew_threshold_max.values
 cont_max_sot = (
     cont_sot.sel(ew_threshold=ew_max_sot)
     .sel(lead=lead_cont)
-    .mean(dim=("latitude", "longitude"))
+    .sum(dim=("latitude", "longitude"))
 )  # before it was mean, now sum to get the total number of events
 
 n_fa_sot = float(cont_max_sot.false_alarms.values)  # false alarms
@@ -887,32 +913,47 @@ for ax, Fval, title, n_hits, n_fa, n_misses, n_cn, hr, far, ew_threshold in zip(
     ax.set_ylim([0, y_lim])
     ax.set_yticks(np.arange(0.2, 0.8, 0.2))
 
-    ax.tick_params(
-        axis="both",
-        which="both",
-        direction="out",
-        length=6,
-        labelsize=13,
-        colors="black",
-    )
+
 
     if log_axis==True:
         # Set the x-axis to a logarithmic scale
         ax.set_xscale('log')
 
         # Set the x-ticks and x-tick labels
-        x_ticks = [0.01, 0.02, 0.03, 0.05, 0.1, 0.2, 0.3, 0.5, 0.7, 1]
+        x_ticks = [0.00001, 0.0001, 0.001, 0.01, 0.1,1]
+        
         ax.set_xticks(x_ticks)
         ax.set_xticklabels([str(tick) for tick in x_ticks])
         # rotate x-tick labels
         ax.tick_params(axis='x', rotation=45)
+        ax.grid(True, which="major", linestyle="--", linewidth=0.7, alpha=0.6, color="black")
+        ax.tick_params(
+            axis="both",
+            which="major",
+            direction="out",
+            length=6,
+            labelsize=13,
+            colors="black",
+    )
+        
+
     else: 
         ax.set_xticks(np.arange(0, 0.7, 0.2))
+        ax.grid(True, which="both", linestyle="--", linewidth=0.7, alpha=0.6, color="black")
+        ax.tick_params(
+            axis="both",
+            which="both",
+            direction="out",
+            length=6,
+            labelsize=13,
+            colors="black",
+    )
+        
     # Add minor ticks
     # ax.minorticks_on()
     ax.set_xlim(x_lim)
     # Add grid for both major and minor ticks
-    ax.grid(True, which="both", linestyle="--", linewidth=0.7, alpha=0.6, color="black")
+    
 
     ############################################# Add table with cont metrics #############################################
     row_labels = ["Early Warning \n Early Action", "No Warning \n No Action"]
@@ -971,7 +1012,7 @@ for ax, Fval, title, n_hits, n_fa, n_misses, n_cn, hr, far, ew_threshold in zip(
         cl_ratio = C_L_best_estimate_sot
 
     ax.axvline(x=cl_ratio, color="r", linestyle="--")
-
+    ax.axvline(x=expected_CF, color="b", linestyle="-")
     # Shade the area between C_L_min and C_L_max
     ax.axvspan(C_L_min, C_L_max, color="grey", alpha=0.5)
 

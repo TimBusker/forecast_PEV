@@ -218,7 +218,8 @@ for p_threshold in p_thresholds:
             C_L_ratios = np.insert(C_L_ratios, 0, 0.002)
             C_L_ratios = np.insert(C_L_ratios, 0, 0.001)
             C_L_ratios = np.insert(C_L_ratios, 0, 0.0001)
-
+            C_L_ratios = np.insert(C_L_ratios, 0, 0.00005)
+            C_L_ratios = np.insert(C_L_ratios, 0, 0.00001)
         if CL_config == "minor":
             C_L_ratios = np.round(np.arange(0.1, 1.00, 0.2), 2)
             C_L_ratios = np.insert(C_L_ratios, 0, 0.05)
@@ -226,6 +227,7 @@ for p_threshold in p_thresholds:
             C_L_ratios = np.insert(C_L_ratios, 0, 0.01)
             C_L_ratios = np.insert(C_L_ratios, 0, 0.001)
             C_L_ratios = np.insert(C_L_ratios, 0, 0.0001)
+            C_L_ratios = np.insert(C_L_ratios, 0, 0.00005)
             C_L_ratios = np.insert(C_L_ratios, 0, 0.00001)
         L = 150  # protectable loss, in euro
 

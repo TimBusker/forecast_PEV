@@ -53,13 +53,35 @@ resolution = "025"  # 0.125 or 0.25
 
 file_indicator = "ES"  # The files are named ES. This contains ES, sot and efi dims. Used to load obs_for files --> for 1 degree, select 'ES_1'
 save_annotation = (
-    "_major"  # this is an extra option to include a remark in the save file name.
+    "_aut"  # this is an extra option to include a remark in the save file name.
 )
-selected_months= 'all' #3,4,5 ------ 6,7,8--------9,10,11 ------12,1,2------ 'all' -------- # specific months or 'all' for all months
+
+# make a dictionary with 'summer' string as key and the months (6,7,8) as values, 'aut' (9,10,11), 'winter' (12,1,2), 'spring' (3,4,5)
+seasons = {
+    "summer": [6, 7, 8],
+    "aut": [9, 10, 11],
+    "winter": [12, 1, 2],
+    "spring": [3, 4, 5],
+}
+
+# Initialize selected_months to 'all'
+i=0
+for season, months in seasons.items():
+    print(season)
+    if season in save_annotation:
+        i=1
+        selected_months = months
+        print(selected_months)
+    else: 
+        if i==0:
+            selected_months = 'all'
+        
+print(selected_months)
+
 start_date = "2016-03-08"  # implementation of cycle CY41R2 from 32km to 16km res
 limit_t = True
-CL_config = "major"  # 'minor' or 'major'
-EW_config = "major"  # 'minor' or 'major'
+CL_config = "minor"  # 'minor' or 'major'
+EW_config = "minor"  # 'minor' or 'major'
 q_method = "seasonal"  # 'seasonal' or 'daily'
 method = "return_periods"  # 'quantile_extremes' or 'return_periods'
 
@@ -81,10 +103,6 @@ lon_lat_box = [3.5, 7.8, 48, 52]  # [lon_min, lon_max, lat_min, lat_max]
 lon_slice = slice(lon_lat_box[0], lon_lat_box[1])  # in case of area selection
 lat_slice = slice(lon_lat_box[3], lon_lat_box[2])  # in case of area selection
 
-
-
-
-
 """
 Select the precipitation threshold. The following options are supported in this version: 
 
@@ -92,8 +110,8 @@ Select the precipitation threshold. The following options are supported in this 
 - Fixed rainfall amounts (mm): 40, 60, 90 (method var: threshold_method, not implemented yet?)
 - Fixed return periods: 5RP, 10RP, 20RP (method var: return_periods)
 
-
 """
+
 p_thresholds = ["5RP"] # 10RP
 indicators = ["sot", "efi"]  # ES, efi or sot --> ES is combined efi+sot, if you need efi + sot seperately, the script needs to run twice.
 
@@ -497,6 +515,8 @@ for indicator in indicators:
                     C_L_ratios = np.insert(C_L_ratios, 0, 0.002)
                     C_L_ratios = np.insert(C_L_ratios, 0, 0.001)
                     C_L_ratios = np.insert(C_L_ratios, 0, 0.0001)
+                    C_L_ratios = np.insert(C_L_ratios, 0, 0.00005)
+                    C_L_ratios = np.insert(C_L_ratios, 0, 0.00001)
 
                 if CL_config == "minor":
                     C_L_ratios = np.round(np.arange(0.1, 1.00, 0.2), 2)
@@ -505,6 +525,7 @@ for indicator in indicators:
                     C_L_ratios = np.insert(C_L_ratios, 0, 0.01)
                     C_L_ratios = np.insert(C_L_ratios, 0, 0.001)
                     C_L_ratios = np.insert(C_L_ratios, 0, 0.0001)
+                    C_L_ratios = np.insert(C_L_ratios, 0, 0.00005)
                     C_L_ratios = np.insert(C_L_ratios, 0, 0.00001)
                 L = 150  # protectable loss, in euro
 
@@ -520,7 +541,6 @@ for indicator in indicators:
                     longitude = L_no_action.longitude.values
 
                     # Step 1: Climatological expense (Ec)
-
                     Ec = np.minimum(
                         (L_no_action.values), C
                     )  ## climatological expense for the x percentile, calculated as numpy array
@@ -707,8 +727,8 @@ for indicator in indicators:
         Fval_area_merged.attrs["lat_slice"] = str(lat_slice)
 
         ########################################### only keep pixels with an event ############################################
-        Fval_merged = Fval_merged.where(event_count > 0, np.nan)
-        Fval_area_merged = Fval_area_merged.where(event_count_a > 0, np.nan)
+        #Fval_merged = Fval_merged.where(event_count > 0, np.nan)
+        #Fval_area_merged = Fval_area_merged.where(event_count_a > 0, np.nan)
         #cont_metrics_merged = cont_metrics_merged.where(event_count > 0, np.nan) --> event count filer can only be done on Fval maps! Otherwise the cont metrics will be wrong.
 
         os.chdir(path_verif)

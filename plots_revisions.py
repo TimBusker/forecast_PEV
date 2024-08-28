@@ -73,8 +73,9 @@ path_return_periods = "/scistor/ivm/tbr910/precip_analysis/return_periods_europe
 indicator = "sot"  # efi, sot (or ES?)
 shift = 1
 resolution = "025"
-day_month = "26_08"  # day and month seperated by an underscore
-save_annotation = "_seasonal" # extra desciption that was added to the input files in PEV.py (optional)
+day_month = "28_08"  # day and month seperated by an underscore
+loader = "_summer" # extra desciption that was added to the input files in PEV.py (optional)
+eu_map_loader='_seasonal' # '_seasonal' or '' (empty string) to load the seasonal or non-seasonal map
 
 # plot config 
 log_axis=True # if True, plot the x-axis on a log scale
@@ -91,45 +92,42 @@ expected_CF= 1/(int(p_threshold.replace("RP",""))*365) # expected coverage facto
 
 
 # C_L
-find_C_L_max = False  # if True, we want to find the PEV for the C_L ratio for which Fval is max. If false, we want to find the PEV for a specific C_L ratio (specified in C_L_best_estimate)
-C_L_best_estimate = 0.1  # 0.08 used in paper.
+find_C_L_max = True  # if True, we want to find the PEV for the C_L ratio for which Fval is max. If false, we want to find the PEV for a specific C_L ratio (specified in C_L_best_estimate)
+C_L_best_estimate = 0.08  # 0.08 used in paper.
 C_L_min = 0.02
 C_L_max = 0.18
 
-# file name strings
-if 'seasonal' in save_annotation:
-    file_accessor = f'max_{day_month}_{str(p_threshold).replace(".","")}_S{shift}{save_annotation}.nc'  # takes already the max Fval file 
-else:
-    file_accessor = f'{day_month}_{str(p_threshold).replace(".","")}_S{shift}{save_annotation}.nc'  # file accessor from the 'save_string' variable in PEV.py
-save_name= f"{indicator}_{file_accessor}"  # save name for the figures
+
 ##################################### Load data #####################################
 os.chdir(path_verif)
 
-# Europe files
-# efi
-Fval_merged_efi = xr.open_dataset("Fval_merged_efi_%s" % (file_accessor))
 
-# sot
-Fval_merged_sot = xr.open_dataset("Fval_merged_sot_%s" % (file_accessor))
+# Europe files
+
+file_accessor_EU_map = f'{day_month}_{str(p_threshold).replace(".","")}_S{shift}{eu_map_loader}.nc'  # takes already the max Fval file 
+Fval_merged_efi = xr.open_dataset("Fval_merged_efi_%s" % (file_accessor_EU_map)) # load seasonal or non-seasonal map
+Fval_merged_sot = xr.open_dataset("Fval_merged_sot_%s" % (file_accessor_EU_map)) # load seasonal or non-seasonal map
+# save name for the figures
+save_name_EU_map= f"{indicator}_{file_accessor_EU_map}"  # save name for the figures
 
 # specific area files
+file_accessor= f'{day_month}_{str(p_threshold).replace(".","")}_S{shift}{loader}.nc'  # file accessor for area files (no seasonal threshold)
 Fval_region_efi = xr.open_dataset("Fval_area_merged_efi_%s" % (file_accessor))
 Fval_region_sot = xr.open_dataset("Fval_area_merged_sot_%s" % (file_accessor))
+# save name for the figures
+save_name= f"{indicator}_{file_accessor}"  # save name for the figures
 
-
-print("total number of events on the ROI:", Fval_region_efi.attrs)
-print(
-    "average number of events per pixel on the ROI:", Fval_region_efi.n_events.mean().values
-)
+################################## Create save string ##################################
 
 
 ##################################### Retrieve lon lats for the ROI #####################################
 """
 lon lat boxes 
-[2.5, 14, 47.5, 55] --> large area Western Europe (used till now)
+"[2.5, 14, 47.5, 55] --> large area Western Europe (used till now)
 [3.95,7.8,49.3,51.3] --> Affected by 2021 floods
 [-10, 20, 39, 55] --> much larger (rondom?) area
-[1,7.8,47.5,51.3] --> area selected with high # events
+[1,7.8,48,52] --> area based on many events
+[3.5,7.8,48,52] --> area based on many events (excluding coastal area of france) --> used in rev.
 """
 
 # retrieve lon lat box as saved in the Fval_region file as attributes
@@ -148,24 +146,60 @@ lon_lat_box[2], lon_lat_box[3] = (
 )  # switch last two numbers
 print("lon_lat_box:", lon_lat_box)
 
+lon_slice = slice(lon_lat_box[0], lon_lat_box[1])  # in case of area selection
+lat_slice = slice(lon_lat_box[3], lon_lat_box[2])  # in case of area selection
+
+
+
+################################### Load the cont metrics ###################################
+# Load contingency metrics over all seasons
+cont_efi_eu = xr.open_dataset("cont_metrics_merged_efi_%s" % (file_accessor_EU_map))
+cont_sot_eu = xr.open_dataset("cont_metrics_merged_sot_%s" % (file_accessor_EU_map))
+
+# Load contingency metrics for specific season (in loader)
+cont_efi = xr.open_dataset("cont_metrics_merged_efi_%s" % (file_accessor)) # mostly for single season
+cont_sot = xr.open_dataset("cont_metrics_merged_sot_%s" % (file_accessor)) # mostly for single season
+
+# select the cont metrics for the ROI
+cont_efi_ROI=cont_efi.sel(longitude=lon_slice, latitude=lat_slice) # select the cont metrics for the ROI
+cont_sot_ROI=cont_sot.sel(longitude=lon_slice, latitude=lat_slice) # select the cont metrics for the ROI
+
+
+
+#n_event_mask=cont_efi_eu.isel(lead=0).isel(ew_threshold=0).n_events>0 # mask for pixels with at least one event
+#n_event_mask=n_event_mask.drop_vars("lead").drop_vars("ew_threshold") # drop lead and ew_threshold dimensions
+
+
+################################### mask pixels with 0 events ###################################
+#Fval_region_efi=Fval_region_efi.where(n_event_mask)
+#Fval_region_sot=Fval_region_sot.where(n_event_mask)
+
 #%%
 #############################################################################################################
 ##################################### Plot the number of extreme events #####################################
 #############################################################################################################
 
-# Load contingency metrics
-cont_efi = xr.open_dataset("cont_metrics_merged_efi_%s" % (file_accessor))
-cont_sot = xr.open_dataset("cont_metrics_merged_sot_%s" % (file_accessor))
+
 
 # plot number of events
 fig, ax = plt.subplots(figsize=(20, 10), subplot_kw={"projection": ccrs.PlateCarree()})
 proj0 = ccrs.PlateCarree(central_longitude=0)
 
-cont_efi.n_events.isel(lead=0).isel(ew_threshold=1).plot.pcolormesh(
-    ax=ax, transform=ccrs.PlateCarree(central_longitude=0), vmin=0, vmax=10
+# Define a categorical colormap
+cmap = mcolors.ListedColormap(['#d73027', '#fc8d59', '#fee08b', '#d9ef8b', '#91cf60', '#1a9850'])
+bounds = [0, 2, 4, 6, 8, 10, 12]
+norm = mcolors.BoundaryNorm(bounds, cmap.N)
+
+# Plot with the categorical colormap
+cont_efi_eu.n_events.isel(lead=0).isel(ew_threshold=1).plot.pcolormesh(
+    ax=ax, transform=ccrs.PlateCarree(central_longitude=0), cmap=cmap, norm=norm, add_colorbar=False
 )  # random lead and ew_threshold
 
-ax.set_title(f"number of events", size=20)
+# Add a colorbar with the categorical bounds
+cbar = plt.colorbar(ax.collections[0], ax=ax, boundaries=bounds, ticks=bounds)
+cbar.set_label('Number of Events')
+
+ax.set_title(f"number of events over all seasons", size=20)
 gl = ax.gridlines(
     crs=proj0, draw_labels=True, linewidth=2, color="gray", alpha=0.5, linestyle="--"
 )
@@ -191,26 +225,23 @@ ax.add_patch(
     )
 )
 
-################# add dots on map for n_events =1 #################
-# Create a mask for the condition
-mask = cont_efi.n_events.isel(lead=0).isel(ew_threshold=1) < 2
-
-# Get the longitude and latitude from the mask
-lon, lat = np.meshgrid(cont_efi.longitude, cont_efi.latitude)
-
-# Plot the red dots on the map where the condition is met
-ax.scatter(lon[mask], lat[mask], color="red", transform=ccrs.PlateCarree(), s=0.5)
 
 fig.tight_layout()
-plt.savefig(path_figs+"n_events_eu_%s.pdf" % (save_name), bbox_inches="tight")
+plt.savefig(path_figs+"n_events_eu_%s.pdf" % (save_name_EU_map), bbox_inches="tight")
 plt.show()
-# save path to local directory (I work now on a remote machine,but i want to save the figure locally)
 plt.close()
 
+############################################################ print n event statistics ################################################
 print(
-    "average number of events per pixel in the whole area :",
-    cont_efi.n_events.mean().values,
+    "average number of events per pixel in the whole area over all seasons :",
+    cont_efi_eu.n_events.mean().values,
 )
+print(
+    "average number of events per pixel on the ROI over all seasons:", Fval_region_efi.n_events.mean().values
+)
+
+print("total number of events on the ROI over all seasons:", Fval_region_efi.attrs)
+
 
 # %%
 ###############################################################################################################################
@@ -220,12 +251,12 @@ print(
 ########################## Select the right C_L ratio ##########################
 if find_C_L_max == True:  #  Find and select max Fval
     if indicator == "efi":
-        if 'seasonal' in save_annotation:
+        if 'seasonal' in eu_map_loader:
             Fval_plot = Fval_merged_efi.max(dim=("C_L")).Fval
         else:
             Fval_plot = Fval_merged_efi.max(dim=("C_L", "ew_threshold")).Fval
     elif indicator == "sot":
-        if 'seasonal' in save_annotation:
+        if 'seasonal' in eu_map_loader:
             Fval_plot = Fval_merged_sot.max(dim=("C_L")).Fval
         else:
             Fval_plot = Fval_merged_sot.max(dim=("C_L", "ew_threshold")).Fval
@@ -239,7 +270,7 @@ else:  # or select the Fval for a specific C_L ratio
 
     Fval_plot = Fval_plot.sel(C_L=C_L_best_estimate).Fval  # select the Fval for the C_L ratio we want to plot
     
-    if 'seasonal' not in save_annotation:
+    if 'seasonal' not in eu_map_loader:
         Fval_plot = Fval_plot.max(dim="ew_threshold")  # only needed if the max is not already calculated in the merger_seasons.py script
 
 
@@ -449,12 +480,12 @@ cbar.set_ticks(np.round(cbar.get_ticks(), 2))
 ########################################### save ################################################
 # set title to plot 
 plt.suptitle(
-    f"Potential economic value (PEV) for {indicator} ",
+    f"Potential economic value (PEV) for {indicator} {eu_map_loader} ",
     size=20,
 
 )
 fig.tight_layout()
-plt.savefig(path_figs + "PEV_MAP_%s.pdf" % (save_name), bbox_inches="tight")
+plt.savefig(path_figs + "PEV_MAP_%s.pdf" % (save_name_EU_map), bbox_inches="tight")
 plt.show()
 plt.close()
 
@@ -462,264 +493,261 @@ plt.close()
 ###############################################################################################################################
 ########################################### Early-Warning Thresholds graph ####################################################
 ###############################################################################################################################
+if indicator == "efi":
+    Fval_plot = Fval_region_efi.copy()
 
-if 'seasonal' not in save_annotation:
-
-    if indicator == "efi":
-        Fval_plot = Fval_region_efi.copy()
-
-    elif indicator == "sot":
-        Fval_plot = Fval_region_sot.copy()
+elif indicator == "sot":
+    Fval_plot = Fval_region_sot.copy()
 
 
 
-    os.chdir(path_verif)
-    ###################### Retrieve thresholds for EFI and SOT ######################
-    thresholds_plot = Fval_plot.ew_threshold.values.tolist()
+os.chdir(path_verif)
+###################### Retrieve thresholds for EFI and SOT ######################
+thresholds_plot = Fval_plot.ew_threshold.values.tolist()
 
-    ###################### Plotting parameters ######################
-    fig = plt.figure(figsize=(20, 30))  # H,W
+###################### Plotting parameters ######################
+fig = plt.figure(figsize=(20, 30))  # H,W
 
-    # seaborn cool style
-    sns.set_style("darkgrid", {"axes.facecolor": ".9"})
+# seaborn cool style
+sns.set_style("darkgrid", {"axes.facecolor": ".9"})
 
-    gs = fig.add_gridspec(20, 20, wspace=3, hspace=1.5)
-    ax1 = fig.add_subplot(gs[0:6, 0:6])  # Y,X
-    ax2 = fig.add_subplot(gs[0:6, 6:12], sharey=ax1)
-    ax3 = fig.add_subplot(gs[0:6, 12:18], sharey=ax1)
-    ax4 = fig.add_subplot(gs[7:13, 0:6])
-    ax5 = fig.add_subplot(gs[7:13, 6:12])
+gs = fig.add_gridspec(20, 20, wspace=3, hspace=1.5)
+ax1 = fig.add_subplot(gs[0:6, 0:6])  # Y,X
+ax2 = fig.add_subplot(gs[0:6, 6:12], sharey=ax1)
+ax3 = fig.add_subplot(gs[0:6, 12:18], sharey=ax1)
+ax4 = fig.add_subplot(gs[7:13, 0:6])
+ax5 = fig.add_subplot(gs[7:13, 6:12])
 
-    plt.setp(ax2.get_yticklabels(), visible=False)
-    plt.setp(ax3.get_yticklabels(), visible=False)
-    plt.setp(ax5.get_yticklabels(), visible=False)
-    # plt.setp(ax6.get_yticklabels(), visible=False)
+plt.setp(ax2.get_yticklabels(), visible=False)
+plt.setp(ax3.get_yticklabels(), visible=False)
+plt.setp(ax5.get_yticklabels(), visible=False)
+# plt.setp(ax6.get_yticklabels(), visible=False)
 
-    label_x = "Cost-loss ratio"
-    label_y = "Potential economic value (PEV)"  # V$_{ECMWFseas5}$
-    label_x_size = 25
-    label_y_size = 25
-    label_fontsize = 25
-    x_ticks = np.arange(0, 0.7, 0.2)  # [0.0,0.4,0.8]
-    y_ticks = np.arange(0.2, 0.8, 0.2)  # [0.2, 0.6, 1.0] 0.2,1.1,0.2
-    y_lim = 0.75
+label_x = "Cost-loss ratio"
+label_y = "Potential economic value (PEV)"  # V$_{ECMWFseas5}$
+label_x_size = 25
+label_y_size = 25
+label_fontsize = 25
+x_ticks = np.arange(0, 0.7, 0.2)  # [0.0,0.4,0.8]
+y_ticks = np.arange(0.2, 0.8, 0.2)  # [0.2, 0.6, 1.0] 0.2,1.1,0.2
+y_lim = 0.75
 
-    if log_axis==True:
-        x_lim = [0.0, 1]
-    else:
-        x_lim = [0, 0.6]
-    tick_size = 15
-    title_size = 30
-    linewidth = 0.5
+if log_axis==True:
+    x_lim = [0.0, 1]
+else:
+    x_lim = [0, 0.6]
+tick_size = 15
+title_size = 30
+linewidth = 0.5
 
-    ######################  Colormap ######################
-    # Define the thresholds you want to include in the legend
-    # legend_thresholds = [thresholds_plot[i] for i in [0, len(thresholds_plot)//4, len(thresholds_plot)//2, 3*len(thresholds_plot)//4, -1]]
+######################  Colormap ######################
+# Define the thresholds you want to include in the legend
+# legend_thresholds = [thresholds_plot[i] for i in [0, len(thresholds_plot)//4, len(thresholds_plot)//2, 3*len(thresholds_plot)//4, -1]]
 
-    # get a list of rgb colors from yellow to orange to red, with length of the number of efi thresholds
-    colors = colour.Color("yellow").range_to(colour.Color("red"), len(thresholds_plot))
-    hex_colors = [color.hex for color in colors]
+# get a list of rgb colors from yellow to orange to red, with length of the number of efi thresholds
+colors = colour.Color("yellow").range_to(colour.Color("red"), len(thresholds_plot))
+hex_colors = [color.hex for color in colors]
 
-    cmap = mcolors.LinearSegmentedColormap.from_list("my_colormap", hex_colors)
-
-
-    ###################### Generate the plot ######################
+cmap = mcolors.LinearSegmentedColormap.from_list("my_colormap", hex_colors)
 
 
-    # Define a function to plot the data
-    def plot_data(
-        ax,
-        lead,
-        hex_colors,
-        thresholds_plot,
-        linewidth,
-        label_x,
-        label_x_size,
-        label_y,
-        label_y_size,
-        x_lim,
-        y_lim,
-        x_ticks,
-        y_ticks,
-        tick_size,
-        label_fontsize,
-    ):
-        Fval_lead = Fval_plot.isel(lead=lead)
-        Fval_lead = Fval_lead.mean(
-            dim=("latitude", "longitude")
-        )  # new, because before the PEV script already calculated the spatial average
-        C_L = Fval_lead.C_L.values
+###################### Generate the plot ######################
 
-        for ew_threshold in thresholds_plot:
-            Fval = Fval_lead.sel(ew_threshold=ew_threshold).Fval.values
 
-            ax.plot(
-                C_L,
-                Fval,
-                label="efi threshold= %s" % (str(ew_threshold)),
-                color=hex_colors[thresholds_plot.index(ew_threshold)],
-                linewidth=linewidth,
-            )
+# Define a function to plot the data
+def plot_data(
+    ax,
+    lead,
+    hex_colors,
+    thresholds_plot,
+    linewidth,
+    label_x,
+    label_x_size,
+    label_y,
+    label_y_size,
+    x_lim,
+    y_lim,
+    x_ticks,
+    y_ticks,
+    tick_size,
+    label_fontsize,
+):
+    Fval_lead = Fval_plot.isel(lead=lead)
+    Fval_lead = Fval_lead.mean(
+        dim=("latitude", "longitude")
+    )  # new, because before the PEV script already calculated the spatial average
+    C_L = Fval_lead.C_L.values
 
-        lead = str(Fval_lead.lead.values)
-        ax.set_title("lead=%s" % (lead), size=title_size)
-        #ax.set_xlabel(label_x, size=label_x_size, weight="bold")
-    # ax.set_xlim(x_lim)
-        ax.set_ylim([0, y_lim])
-        #ax.set_xticks(x_ticks)
-        ax.set_yticks(y_ticks)
-        ax.tick_params(axis="both", which="major", labelsize=tick_size)
-        ax.tick_params(axis="both", which="minor", labelsize=tick_size)
-        
-        if log_axis==True:
-            # Set the x-axis to a logarithmic scale
-            ax.set_xscale('log')
+    for ew_threshold in thresholds_plot:
+        Fval = Fval_lead.sel(ew_threshold=ew_threshold).Fval.values
 
-            # Set the x-ticks and x-tick labels
-            x_ticks = [0.00001, 0.0001, 0.001, 0.01, 0.1,1]
-            
-            ax.set_xticks(x_ticks)
-            ax.set_xticklabels([str(tick) for tick in x_ticks])
-            # rotate x-tick labels
-            ax.tick_params(axis='x', rotation=45)
-            ax.grid(True, which="major", linestyle="--", linewidth=0.7, alpha=0.6, color="black")
-            ax.tick_params(
-                axis="both",
-                which="major",
-                direction="out",
-                length=6,
-                labelsize=13,
-                colors="black",
+        ax.plot(
+            C_L,
+            Fval,
+            label="efi threshold= %s" % (str(ew_threshold)),
+            color=hex_colors[thresholds_plot.index(ew_threshold)],
+            linewidth=linewidth,
         )
-            
 
-    # Call the function for each subplot
-    plot_data(
-        ax1,
-        0,
-        hex_colors,
-        thresholds_plot,
-        linewidth,
-        label_x,
-        label_x_size,
-        label_y,
-        label_y_size,
-        x_lim,
-        y_lim,
-        x_ticks,
-        y_ticks,
-        tick_size,
-        label_fontsize,
-    )
-    plot_data(
-        ax2,
-        1,
-        hex_colors,
-        thresholds_plot,
-        linewidth,
-        label_x,
-        label_x_size,
-        label_y,
-        label_y_size,
-        x_lim,
-        y_lim,
-        x_ticks,
-        y_ticks,
-        tick_size,
-        label_fontsize,
-    )
-    plot_data(
-        ax3,
-        2,
-        hex_colors,
-        thresholds_plot,
-        linewidth,
-        label_x,
-        label_x_size,
-        label_y,
-        label_y_size,
-        x_lim,
-        y_lim,
-        x_ticks,
-        y_ticks,
-        tick_size,
-        label_fontsize,
-    )
-    plot_data(
-        ax4,
-        3,
-        hex_colors,
-        thresholds_plot,
-        linewidth,
-        label_x,
-        label_x_size,
-        label_y,
-        label_y_size,
-        x_lim,
-        y_lim,
-        x_ticks,
-        y_ticks,
-        tick_size,
-        label_fontsize,
-    )
-    plot_data(
-        ax5,
-        4,
-        hex_colors,
-        thresholds_plot,
-        linewidth,
-        label_x,
-        label_x_size,
-        label_y,
-        label_y_size,
-        x_lim,
-        y_lim,
-        x_ticks,
-        y_ticks,
-        tick_size,
-        label_fontsize,
-    )
+    lead = str(Fval_lead.lead.values)
+    ax.set_title("lead=%s" % (lead), size=title_size)
+    #ax.set_xlabel(label_x, size=label_x_size, weight="bold")
+# ax.set_xlim(x_lim)
+    ax.set_ylim([0, y_lim])
+    #ax.set_xticks(x_ticks)
+    ax.set_yticks(y_ticks)
+    ax.tick_params(axis="both", which="major", labelsize=tick_size)
+    ax.tick_params(axis="both", which="minor", labelsize=tick_size)
+    
+    if log_axis==True:
+        # Set the x-axis to a logarithmic scale
+        ax.set_xscale('log')
 
-    # Set ylabel for ax4
-    ax4.set_ylabel(label_y, size=label_y_size, weight="bold")
+        # Set the x-ticks and x-tick labels
+        x_ticks = [0.00001, 0.0001, 0.001, 0.01, 0.1,1]
+        
+        ax.set_xticks(x_ticks)
+        ax.set_xticklabels([str(tick) for tick in x_ticks])
+        # rotate x-tick labels
+        ax.tick_params(axis='x', rotation=45)
+        ax.grid(True, which="major", linestyle="--", linewidth=0.7, alpha=0.6, color="black")
+        ax.tick_params(
+            axis="both",
+            which="major",
+            direction="out",
+            length=6,
+            labelsize=13,
+            colors="black",
+    )
+        
 
-    # Create custom legend
-    # legend_elements = [Line2D([0], [0], color=hex_colors[thresholds_plot.index(threshold)], lw=linewidth, label='efi threshold= %s'%(str(threshold))) for threshold in legend_thresholds]
-    # ax5.legend(handles=legend_elements, fontsize=label_fontsize, loc='lower right', bbox_to_anchor=(2, 0))
+# Call the function for each subplot
+plot_data(
+    ax1,
+    0,
+    hex_colors,
+    thresholds_plot,
+    linewidth,
+    label_x,
+    label_x_size,
+    label_y,
+    label_y_size,
+    x_lim,
+    y_lim,
+    x_ticks,
+    y_ticks,
+    tick_size,
+    label_fontsize,
+)
+plot_data(
+    ax2,
+    1,
+    hex_colors,
+    thresholds_plot,
+    linewidth,
+    label_x,
+    label_x_size,
+    label_y,
+    label_y_size,
+    x_lim,
+    y_lim,
+    x_ticks,
+    y_ticks,
+    tick_size,
+    label_fontsize,
+)
+plot_data(
+    ax3,
+    2,
+    hex_colors,
+    thresholds_plot,
+    linewidth,
+    label_x,
+    label_x_size,
+    label_y,
+    label_y_size,
+    x_lim,
+    y_lim,
+    x_ticks,
+    y_ticks,
+    tick_size,
+    label_fontsize,
+)
+plot_data(
+    ax4,
+    3,
+    hex_colors,
+    thresholds_plot,
+    linewidth,
+    label_x,
+    label_x_size,
+    label_y,
+    label_y_size,
+    x_lim,
+    y_lim,
+    x_ticks,
+    y_ticks,
+    tick_size,
+    label_fontsize,
+)
+plot_data(
+    ax5,
+    4,
+    hex_colors,
+    thresholds_plot,
+    linewidth,
+    label_x,
+    label_x_size,
+    label_y,
+    label_y_size,
+    x_lim,
+    y_lim,
+    x_ticks,
+    y_ticks,
+    tick_size,
+    label_fontsize,
+)
 
-    ###################### Colorbar ######################
-    cax = fig.add_axes(
-        [0.25, 0.33, 0.4, 0.02]
-    )  # Adjust these values to position the colorbar
-    norm = mcolors.Normalize(
-        vmin=min(thresholds_plot), vmax=max(thresholds_plot)
-    )  # Normalize the colorbar
-    cb = mcolorbar.ColorbarBase(
-        cax, cmap=cmap, norm=norm, orientation="horizontal"
-    )  # Create the colorbar
-    cb.set_label(
-        f"{indicator} Threshold", size=label_fontsize, weight="bold"
-    )  # Set the label
-    cb.ax.tick_params(labelsize=label_fontsize)  # Set tick label size
+# Set ylabel for ax4
+ax4.set_ylabel(label_y, size=label_y_size, weight="bold")
 
-    # Set ticks at the minimum, maximum, and some middle thresholds
-    middle_values = [
-        thresholds_plot[i]
-        for i in [
-            len(thresholds_plot) // 4,
-            len(thresholds_plot) // 2,
-            3 * len(thresholds_plot) // 4,
-        ]
+# Create custom legend
+# legend_elements = [Line2D([0], [0], color=hex_colors[thresholds_plot.index(threshold)], lw=linewidth, label='efi threshold= %s'%(str(threshold))) for threshold in legend_thresholds]
+# ax5.legend(handles=legend_elements, fontsize=label_fontsize, loc='lower right', bbox_to_anchor=(2, 0))
+
+###################### Colorbar ######################
+cax = fig.add_axes(
+    [0.25, 0.33, 0.4, 0.02]
+)  # Adjust these values to position the colorbar
+norm = mcolors.Normalize(
+    vmin=min(thresholds_plot), vmax=max(thresholds_plot)
+)  # Normalize the colorbar
+cb = mcolorbar.ColorbarBase(
+    cax, cmap=cmap, norm=norm, orientation="horizontal"
+)  # Create the colorbar
+cb.set_label(
+    f"{indicator} Threshold", size=label_fontsize, weight="bold"
+)  # Set the label
+cb.ax.tick_params(labelsize=label_fontsize)  # Set tick label size
+
+# Set ticks at the minimum, maximum, and some middle thresholds
+middle_values = [
+    thresholds_plot[i]
+    for i in [
+        len(thresholds_plot) // 4,
+        len(thresholds_plot) // 2,
+        3 * len(thresholds_plot) // 4,
     ]
-    cb.set_ticks([min(thresholds_plot)] + middle_values + [max(thresholds_plot)])
+]
+cb.set_ticks([min(thresholds_plot)] + middle_values + [max(thresholds_plot)])
 
 
-    # legend and show/save
-    # ax5.legend(fontsize=label_fontsize, loc='lower right', bbox_to_anchor=(2, 0))
-    # plt.savefig(path_figs+'/C_L.pdf', bbox_inches='tight')
+# legend and show/save
+# ax5.legend(fontsize=label_fontsize, loc='lower right', bbox_to_anchor=(2, 0))
+# plt.savefig(path_figs+'/C_L.pdf', bbox_inches='tight')
 
 
-    plt.show()
+plt.show()
 
 
 # %%
@@ -732,13 +760,13 @@ os.chdir(path_verif)
 # efi
 
 Fval_efi = Fval_region_efi.Fval # defined in beginning script 
-Fval_efi = Fval_efi.mean(
-    dim=("longitude","latitude")
-)  # new in this revisions version, because before the PEV script already calculated the spatial average
+# Fval_efi = Fval_efi.mean(
+#     dim=("longitude","latitude")
+# )  # new in this revisions version, because before the PEV script already calculated the spatial average
 
-# sot
+# # sot
 Fval_sot = Fval_region_sot.Fval
-Fval_sot = Fval_sot.mean(dim=("longitude","latitude"))  # also new, see above
+#Fval_sot = Fval_sot.mean(dim=("longitude","latitude"))  # also new, see above
 
 ################################## STEP 1: Find ew thresholds per C/L value which generate maximum PEV ############################################
 # these lines first identify the ew thresholds used to get the max PEV, then calculate the max PEV and attach the ew thresholds to this dataset
@@ -793,7 +821,7 @@ ew_max_efi = PEV_cont_efi.ew_threshold_max.values
 
 # 2.3 use this ew threshold to select the cont metrics for this ew threshold
 cont_max_efi = (
-    cont_efi.sel(ew_threshold=ew_max_efi)
+    cont_efi_ROI.sel(ew_threshold=ew_max_efi)
     .sel(lead=lead_cont)
     .sum(dim=("latitude", "longitude"))
 )  # before it was mean, now sum to get the total number of events
@@ -823,7 +851,7 @@ ew_max_sot = PEV_cont_sot.ew_threshold_max.values
 
 # 2.3 use this ew threshold to select the cont metrics for this ew threshold
 cont_max_sot = (
-    cont_sot.sel(ew_threshold=ew_max_sot)
+    cont_sot_ROI.sel(ew_threshold=ew_max_sot)
     .sel(lead=lead_cont)
     .sum(dim=("latitude", "longitude"))
 )  # before it was mean, now sum to get the total number of events
@@ -879,6 +907,7 @@ for ax, Fval, title, n_hits, n_fa, n_misses, n_cn, hr, far, ew_threshold in zip(
 ):
 
     legend_handles = []
+
     for i in range(5):
         (line,) = ax.plot(
             Fval.C_L, Fval.isel(lead=i), color=colors[i], linewidth=3, alpha=0.7
@@ -906,6 +935,7 @@ for ax, Fval, title, n_hits, n_fa, n_misses, n_cn, hr, far, ew_threshold in zip(
                 label=f"Lead: {i+1} days",
             )
         )
+
 
     ax.set_xlabel("Action costs / prevented damage (C/L)", size=13, weight="bold")
     ax.set_ylabel("Forecast Value (PEV)", size=13, weight="bold")
@@ -993,7 +1023,7 @@ for ax, Fval, title, n_hits, n_fa, n_misses, n_cn, hr, far, ew_threshold in zip(
     fig.text(
         x_position,
         1.25,
-        f"{title} threshold = {ew_threshold}\nLead time = %s days" % (lead_cont[0]),
+        f"{title} threshold = {ew_threshold}\nLead time = %s days" % (lead_cont[0]), # CHECK THIS
         fontsize=13,
         verticalalignment="top",
         fontstyle="italic",
@@ -1050,12 +1080,12 @@ plt.close()
 
 if indicator == "sot":
     Fval_plot = Fval_sot.copy()
-    cont_plot = cont_sot.copy()
+    cont_plot = cont_sot_ROI.copy()
     cl_ratios = Fval_plot.C_L.values
 
 if indicator == "efi":
     Fval_plot = Fval_efi.copy()
-    cont_plot = cont_efi.copy()
+    cont_plot = cont_efi_ROI.copy()
     cl_ratios = Fval_plot.C_L.values
 
  
@@ -1230,7 +1260,7 @@ if "RP" not in p_threshold:  # plot percentiles
     plt.suptitle(
         f"Precipitation for different seasons (p_threshold: {p_threshold})", size=24
     )
-    plt.savefig(path_figs + "q_eu_map_%s.pdf" % (save_name), bbox_inches="tight")
+    plt.savefig(path_figs + "q_eu_map_%s.pdf" % (p_threshold), bbox_inches="tight")
     plt.show()
 
 if "RP" in p_threshold:  # plot percentiles
@@ -1256,11 +1286,124 @@ if "RP" in p_threshold:  # plot percentiles
     ax.set_xlabel("Longitude")
     ax.set_ylabel("Latitude")
     plt.title(f"Precipitation at fixed {p_threshold[:-2]} year return period")
-    plt.savefig(path_figs + "RP_map_%s.pdf" % (save_name), bbox_inches="tight")
+    plt.savefig(path_figs + "RP_map_%s.pdf" % (p_threshold), bbox_inches="tight")
     plt.show()
 
 
-# %%
+
+
+
+#%%
+###############################################################################################################################
+########################################### EW threshold per lead time for each season  ########################################################
+
+os.chdir(path_verif)
+
+# reload the data
+seasons=['spring','summer','aut','winter']
+df= pd.DataFrame(columns=['lead','season','ew_threshold_efi','ew_threshold_sot'])
+for season in seasons: 
+    file_accessor= f'{day_month}_{str(p_threshold).replace(".","")}_S{shift}_{season}.nc'  # file accessor for area files (no seasonal threshold)
+    Fval_region_efi2 = xr.open_dataset("Fval_area_merged_efi_%s" % (file_accessor))
+    Fval_region_sot2 = xr.open_dataset("Fval_area_merged_sot_%s" % (file_accessor))
+
+
+    ################# Load area data from the ROI #################
+    # efi
+
+    Fval_efi2 = Fval_region_efi2.Fval # defined in beginning script 
+    # Fval_efi = Fval_efi.mean(
+    #     dim=("longitude","latitude")
+    # )  # new in this revisions version, because before the PEV script already calculated the spatial average
+
+    # # sot
+    Fval_sot2 = Fval_region_sot2.Fval
+    #Fval_sot = Fval_sot.mean(dim=("longitude","latitude"))  # also new, see above
+
+    ################################## STEP 1: Find ew thresholds per C/L value which generate maximum PEV ############################################
+    # these lines first identify the ew thresholds used to get the max PEV, then calculate the max PEV and attach the ew thresholds to this dataset
+
+    ############ SOT #############
+    Fval_sot_max_index2 = Fval_sot2.argmax(dim=("ew_threshold"))
+    ew_threshold_max2 = Fval_sot2.ew_threshold[
+        Fval_sot_max_index2
+    ]  # get the ew_thresholds for which the PEV is max
+    Fval_sot2 = Fval_sot2.max(dim=("ew_threshold"))  # get the max PEV for each C/L
+    Fval_sot2 = Fval_sot2.to_dataset(name="Fval")
+    Fval_sot2["ew_threshold_max"] = (
+        ew_threshold_max2  # add the ew_thresholds for which the PEV is max to the dataset
+    )
+
+    ############ EFI #############
+    Fval_efi_max_index2 = Fval_efi2.argmax(dim=("ew_threshold"))
+    ew_threshold_max2 = Fval_efi2.ew_threshold[
+        Fval_efi_max_index2
+    ]  # get the ew_thresholds for which the PEV is max
+    Fval_efi2 = Fval_efi2.max(dim=("ew_threshold"))  # get the max PEV for each C/L
+    Fval_efi2 = Fval_efi2.to_dataset(name="Fval")
+    Fval_efi2["ew_threshold_max"] = (
+        ew_threshold_max2  # add the ew_thresholds for which the PEV is max to the dataset
+    )
+
+    #################################### Step 2: retrieve the cont metrics for these ew thresholds (for C/L we want to calculate, either specific value or the one giving heighest PEV) ##################################
+    for lead_time in lead_times:
+        lead_cont2 = lead_time  # lead time for which we want to calculate the cont metrics
+
+
+        ######### EFI  #########
+        Fval_efi_lead2 = Fval_efi2.sel(lead=lead_cont2)
+
+        # 2.1: Select PEV and find/select C/L ratio
+        if find_C_L_max == True:
+            PEV_cont_efi2 = Fval_efi_lead2.where(
+                Fval_efi_lead2.Fval == Fval_efi_lead2.Fval.max(), drop=True
+            )  # select PEV max
+            C_L_best_estimate_efi2 = (
+                PEV_cont_efi2.C_L.values
+            )  # get the C_L ratio for which the PEV is max
+        else:
+            C_L_best_estimate_efi2 = (
+                C_L_best_estimate
+            )  # use the C_L ratio specified in the config
+            PEV_cont_efi2 = Fval_efi_lead2.sel(
+                C_L=C_L_best_estimate_efi2
+            )  # select the PEV for this C_L ratio
+
+        # 2.2 Retrieve early warning threshold that gives this max PEV
+        ew_max_efi2 = float(PEV_cont_efi2.ew_threshold_max.values)
+        Fval_max_efi2 = float(PEV_cont_efi2.Fval.values)
+        if Fval_max_efi2<=0:
+            ew_max_efi2 = np.nan
+        
+        ######### SOT  #########
+        Fval_sot_lead2 = Fval_sot2.sel(lead=lead_cont2)
+
+        # 2.1: Select PEV and find/select C/L ratio
+        if find_C_L_max == True:
+            PEV_cont_sot2 = Fval_sot_lead2.where(
+                Fval_sot_lead2.Fval == Fval_sot_lead2.Fval.max(), drop=True
+            )
+            C_L_best_estimate_sot2 = PEV_cont_sot2.C_L.values
+        else:
+            C_L_best_estimate_sot2 = C_L_best_estimate
+            PEV_cont_sot2 = Fval_sot_lead2.sel(C_L=C_L_best_estimate_sot2)
+
+        # 2.2 Retrieve early warning threshold that gives this max PEV
+        ew_max_sot2 = float(PEV_cont_sot2.ew_threshold_max.values)
+        Fval_max_sot2 = float(PEV_cont_sot2.Fval.values)
+
+        if Fval_max_sot2<=0:
+            ew_max_sot2 = np.nan
+        # add to the dataframe
+        df.loc[len(df)] = [lead_cont2,season,ew_max_efi2,ew_max_sot2]
+
+        if find_C_L_max == True:
+            C_L_string = "CL_max"
+        else:
+            C_L_string = str(C_L_best_estimate)
+        df.to_excel(path_figs + "/ew_thresholds_%s.xlsx" % (C_L_string), index=False)
+
+#%%
 ###############################################################################################################################
 ########################################### PEVmax graph comparing EFI, SOT and EFI  ##########################################
 ###############################################################################################################################
@@ -1308,6 +1451,10 @@ plt.title("lead=%s days" % (lead+1), size=20)
 plt.legend(fontsize=15, loc="lower right", bbox_to_anchor=(1.1, 0))
 plt.savefig(path_figs + "ES_comparison_graph_%s.pdf" % (save_name), bbox_inches="tight")
 plt.show()
+
+
+
+
 
 
 

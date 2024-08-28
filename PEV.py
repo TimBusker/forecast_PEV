@@ -53,7 +53,7 @@ resolution = "025"  # 0.125 or 0.25
 
 file_indicator = "ES"  # The files are named ES. This contains ES, sot and efi dims. Used to load obs_for files --> for 1 degree, select 'ES_1'
 save_annotation = (
-    "_aut"  # this is an extra option to include a remark in the save file name.
+    ""  # this is an extra option to include a remark in the save file name.
 )
 
 # make a dictionary with 'summer' string as key and the months (6,7,8) as values, 'aut' (9,10,11), 'winter' (12,1,2), 'spring' (3,4,5)
@@ -135,9 +135,14 @@ for indicator in indicators:
                 0.7,
                 0.8,
                 0.9,
+                0.91,
+                0.92,
                 0.93,
+                0.94,
                 0.95,
+                0.96,
                 0.97,
+                0.98,
                 0.99,
                 1.0,
             ]
@@ -218,8 +223,11 @@ for indicator in indicators:
                 1.6,
                 1.7,
                 1.8,
+                1.85,
                 1.9,
+                1.95,
                 2.0,
+                2.05,
                 2.1,
                 2.2,
                 2.3,
@@ -509,23 +517,38 @@ for indicator in indicators:
                     C_L_ratios = np.insert(C_L_ratios, 0, 0.02)
                     C_L_ratios = np.insert(C_L_ratios, 0, 0.015)
                     C_L_ratios = np.insert(C_L_ratios, 0, 0.01)
+                    C_L_ratios = np.insert(C_L_ratios, 0, 0.008)
                     C_L_ratios = np.insert(C_L_ratios, 0, 0.005)
                     C_L_ratios = np.insert(C_L_ratios, 0, 0.004)
                     C_L_ratios = np.insert(C_L_ratios, 0, 0.003)
                     C_L_ratios = np.insert(C_L_ratios, 0, 0.002)
                     C_L_ratios = np.insert(C_L_ratios, 0, 0.001)
+                    C_L_ratios = np.insert(C_L_ratios, 0, 0.0008)
+                    C_L_ratios = np.insert(C_L_ratios, 0, 0.0005)
+                    C_L_ratios = np.insert(C_L_ratios, 0, 0.0003)
                     C_L_ratios = np.insert(C_L_ratios, 0, 0.0001)
+                    C_L_ratios = np.insert(C_L_ratios, 0, 0.00008)
                     C_L_ratios = np.insert(C_L_ratios, 0, 0.00005)
+                    C_L_ratios = np.insert(C_L_ratios, 0, 0.00003)
                     C_L_ratios = np.insert(C_L_ratios, 0, 0.00001)
 
                 if CL_config == "minor":
-                    C_L_ratios = np.round(np.arange(0.1, 1.00, 0.2), 2)
+                    C_L_ratios = np.round(np.arange(0.1, 1.00, 0.1), 2)
+                    C_L_ratios = np.insert(C_L_ratios, 0, 0.08)
                     C_L_ratios = np.insert(C_L_ratios, 0, 0.05)
                     C_L_ratios = np.insert(C_L_ratios, 0, 0.03)
                     C_L_ratios = np.insert(C_L_ratios, 0, 0.01)
+                    C_L_ratios = np.insert(C_L_ratios, 0, 0.008)
+                    C_L_ratios = np.insert(C_L_ratios, 0, 0.005)
+                    C_L_ratios = np.insert(C_L_ratios, 0, 0.003)
                     C_L_ratios = np.insert(C_L_ratios, 0, 0.001)
+                    C_L_ratios = np.insert(C_L_ratios, 0, 0.0008)
+                    C_L_ratios = np.insert(C_L_ratios, 0, 0.0005)
+                    C_L_ratios = np.insert(C_L_ratios, 0, 0.0003)
                     C_L_ratios = np.insert(C_L_ratios, 0, 0.0001)
+                    C_L_ratios = np.insert(C_L_ratios, 0, 0.00008)
                     C_L_ratios = np.insert(C_L_ratios, 0, 0.00005)
+                    C_L_ratios = np.insert(C_L_ratios, 0, 0.00003)
                     C_L_ratios = np.insert(C_L_ratios, 0, 0.00001)
                 L = 150  # protectable loss, in euro
 
@@ -606,27 +629,27 @@ for indicator in indicators:
                     ##############################################################################################
 
                     event_count_a = event_count.sel(longitude=lon_slice, latitude=lat_slice)
-                    # calculate contingency metri
+                    # calculate contingency metrics
                     hits_a = hits.sel(longitude=lon_slice, latitude=lat_slice)
-                    #hits_a = hits_a.where(event_count_a > 0, np.nan)
+                    hits_a = hits_a.where(event_count_a > 0, np.nan)
                     misses_a = misses.sel(longitude=lon_slice, latitude=lat_slice)
-                    #misses_a = misses_a.where(event_count_a > 0, np.nan)
+                    misses_a = misses_a.where(event_count_a > 0, np.nan)
                     false_alarms_a = false_alarms.sel(
                         longitude=lon_slice, latitude=lat_slice
                     )
-                    #false_alarms_a = false_alarms_a.where(event_count_a > 0, np.nan)
+                    false_alarms_a = false_alarms_a.where(event_count_a > 0, np.nan)
                     correct_negatives_a = correct_negatives.sel(
                         longitude=lon_slice, latitude=lat_slice
                     )
-                    #correct_negatives_a = correct_negatives_a.where(
-                    #    event_count_a > 0, np.nan
-                    #)
+                    correct_negatives_a = correct_negatives_a.where(
+                        event_count_a > 0, np.nan
+                    )
                     ts_total_a = time_steps_total.sel(
                         longitude=lon_slice, latitude=lat_slice
                     )
-                    #ts_total_a = ts_total_a.where(event_count_a > 0, np.nan)
+                    ts_total_a = ts_total_a.where(event_count_a > 0, np.nan)
                     Climfreq_a = Climfreq.sel(longitude=lon_slice, latitude=lat_slice)
-                    #Climfreq_a = Climfreq_a.where(event_count_a > 0, np.nan)
+                    Climfreq_a = Climfreq_a.where(event_count_a > 0, np.nan)
 
                     # sum stats over area
                     hits_t = hits_a.sum(dim=["latitude", "longitude"])
@@ -637,15 +660,15 @@ for indicator in indicators:
                     )
                     ts_total_t = ts_total_a.sum(dim=["latitude", "longitude"])
                     Climfreq_t = (hits_t + misses_t) / ts_total_t
-                    #print("climfreq=%s"%(Climfreq_t))
+                    print("climfreq=%s"%(Climfreq_t))
                     
 
                     FAR_a = false_alarms_t / (
                         false_alarms_t + correct_negatives_t
                     )  # area-aggregated FAR. false alarms+correct_negatives=ts_total
-                    #FAR_a = FAR_a.where(event_count_a > 0, np.nan)
+                    #FAR_a = FAR_a.where(event_count_a > 0, np.nan) # dont activate! adds lats/lons
                     hit_rate_a = hits_t / (hits_t + misses_t)  # area-aggregated hit rate.
-                    #hit_rate_a = hit_rate_a.where(event_count_a > 0, np.nan)
+                    #hit_rate_a = hit_rate_a.where(event_count_a > 0, np.nan) # dont activate! adds lats/lons 
                     Fval_area = (
                         np.minimum(C_L, Climfreq_t)
                         - (FAR_a * (1 - Climfreq_t) * C_L)

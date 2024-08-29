@@ -75,7 +75,7 @@ shift = 1
 resolution = "025"
 day_month = "28_08"  # day and month seperated by an underscore
 loader = "_summer" # extra desciption that was added to the input files in PEV.py (optional)
-eu_map_loader='_seasonal' # '_seasonal' or '' (empty string) to load the seasonal or non-seasonal map
+eu_map_loader='' # '_seasonal' or '' (empty string) to load the seasonal or non-seasonal map
 
 # plot config 
 log_axis=True # if True, plot the x-axis on a log scale
@@ -92,7 +92,7 @@ expected_CF= 1/(int(p_threshold.replace("RP",""))*365) # expected coverage facto
 
 
 # C_L
-find_C_L_max = True  # if True, we want to find the PEV for the C_L ratio for which Fval is max. If false, we want to find the PEV for a specific C_L ratio (specified in C_L_best_estimate)
+find_C_L_max = False  # if True, we want to find the PEV for the C_L ratio for which Fval is max. If false, we want to find the PEV for a specific C_L ratio (specified in C_L_best_estimate)
 C_L_best_estimate = 0.08  # 0.08 used in paper.
 C_L_min = 0.02
 C_L_max = 0.18

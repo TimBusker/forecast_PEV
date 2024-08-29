@@ -1,3 +1,6 @@
+
+#%% packages and paths 
+
 import geopandas as gpd
 import pandas as pd
 import numpy as np
@@ -20,6 +23,7 @@ from matplotlib.collections import LineCollection
 import matplotlib.ticker as mticker
 from matplotlib.patches import Polygon
 from matplotlib.colors import LinearSegmentedColormap
+import geopandas as gpd
 
 geolocator = Nominatim(user_agent="hornofafrica")
 
@@ -36,12 +40,21 @@ path_efi= home+'ECMWF/files_efi/'
 path_verif= home+'precip_analysis/verif_files'
 path_obs_for_new= home+'precip_analysis/obs_for_new_LT'
 path_impact= home+'precip_analysis/risk_impact'
-path_figures= home+'/precip_analysis/figures'
+path_figures= home+'/precip_analysis/figures/revisions'
 path_support=home+'/precip_analysis/support_files'
 
+#%% 
 ############################################ Flood event #############################################
 flood_event= 'WE' # 'WE', 'IT, 'SL', 'HALLEIN'
 plot_europe=False
+
+
+#%% Load Ahr catchment 
+german_catchments= gpd.read_file(path_impact+'//Flussgebietsgrenzen_und_Flusseinzugsgebiete_2963387439123051134/Flusseinzugsgebiet_DE.shp')
+ahr_catchment=german_catchments.loc[german_catchments['NAME_500']=='Ahr']
+
+#%% load impacts
+
 ##########################################################################################################
 ############################################ Impact datasets #############################################
 ##########################################################################################################
@@ -181,6 +194,7 @@ if flood_event=='WE':
 #2. IT floods 2023
 IT_floods= gpd.read_file(path_impact+'/IT_flood_damage.shp')
 
+#%% 
 ################################################################################################################
 ############################################ LOAD & PROCESS EFI + SOT ##########################################
 ################################################################################################################
@@ -288,9 +302,9 @@ sot_L5_event['init_time'] = '2021-07-10 00:00:00'
 
 
 
-
+#%%
 ################################################################################################################
-############################################ PLOTS  ############################################################
+############################################ EFI/SOT PLOT WITH IMPACTS##########################################
 ################################################################################################################
 
 ############################################## Plot EFI+SOT #####################################################
@@ -388,15 +402,15 @@ if flood_event=='WE':
     for i in range(len(emdat_flood)):
         print(i)
         row = emdat_flood.iloc[i]
-        #for ax in axes:
+        for ax in axes:
             #ax.scatter(row['lon'], row['lat'], s=100, c='black', marker="x", alpha=a_e_WE, transform=ccrs.PlateCarree(central_longitude=0))
-            # blue empty circles
-            #if plot_europe==False: 
-                #ax.scatter(row['lon'], row['lat'], s=40, edgecolors='#3f3fd4', facecolors='none', marker="o", linewidths=1,alpha=1, transform=ccrs.PlateCarree(central_longitude=0))
+            #blue empty circles
+            if plot_europe==False: 
+                ax.scatter(row['lon'], row['lat'], s=40, edgecolors='#3f3fd4', facecolors='none', marker="o", linewidths=1,alpha=1, transform=ccrs.PlateCarree(central_longitude=0))
                 
-            #ax.scatter(7.118, 50.544, s=100, facecolors='none', edgecolors='yellow', marker='D', alpha=1, linewidths=1, transform=ccrs.PlateCarree(central_longitude=0))
+            ax.scatter(7.118, 50.544, s=100, facecolors='none', edgecolors='yellow', marker='D', alpha=1, linewidths=1, transform=ccrs.PlateCarree(central_longitude=0))
 
-            # location of Bad neuenahr ahrweiler 
+            #location of Bad neuenahr ahrweiler 
             #ax.scatter(7.1, 50.5, s=100, c='Green', marker='D', alpha=a_ahr, transform=ccrs.PlateCarree(central_longitude=0))
 
 if flood_event=='IT':
@@ -432,8 +446,13 @@ for ax in axes:
 plt.savefig(path_figures+'/efi_sot_impacts_%s.pdf'%flood_event,bbox_inches='tight', dpi=800)
 plt.show()
 
-####################################################### CDF PLOT ########################################################
-lead_time_cdf='2'
+
+#%% 
+##########################################################################################################################
+####################################################### CDF PLOTS ########################################################
+##########################################################################################################################
+
+lead_time_cdf='1'
 sample='pixel' # 'box' or 'pixel'
 
 
@@ -585,75 +604,75 @@ def gradient_fill(c,x, y, cmap, ax=None, downsampling=1):
 
 
 
-# plot cdf's in 1x2 subplot
-fig, ax = plt.subplots(2,1, figsize=(3,2)) 
-# width space between subplots
-fig.subplots_adjust(hspace=0.8, wspace=0.3)
+# # plot cdf's in 1x2 subplot
+# fig, ax = plt.subplots(2,1, figsize=(3,2)) 
+# # width space between subplots
+# fig.subplots_adjust(hspace=0.8, wspace=0.3)
 
-####################################################### CMAP ######################################################
-# Define the colors for the colormap
-colors = ["#f7f5a1", "#FFA500", "#FF4500", "#8B0000"]  # darker yellow to dark red
+# ####################################################### CMAP ######################################################
+# # Define the colors for the colormap
+# colors = ["#f7f5a1", "#FFA500", "#FF4500", "#8B0000"]  # darker yellow to dark red
 
-# Create the colormap
-cmap = LinearSegmentedColormap.from_list("custom", colors, N=256)
+# # Create the colormap
+# cmap = LinearSegmentedColormap.from_list("custom", colors, N=256)
 
-###################################################### plot CDF lines (uncoloured) ######################################################
-ax[0].plot(efi_L1_roi_np, cdf_efi, label='EFI')
-ax[1].plot(sot_L1_roi_np, cdf_sot, label='SOT')
+# ###################################################### plot CDF lines (uncoloured) ######################################################
+# ax[0].plot(efi_L1_roi_np, cdf_efi, label='EFI')
+# ax[1].plot(sot_L1_roi_np, cdf_sot, label='SOT')
 
-# xlim
-ax[0].set_xlim(-1, 1)
-ax[1].set_xlim(sot_L1_roi.min()-0.1, sot_L1_roi.max()+0.1)
+# # xlim
+# ax[0].set_xlim(-1, 1)
+# ax[1].set_xlim(sot_L1_roi.min()-0.1, sot_L1_roi.max()+0.1)
 
-# ylim
-ax[0].set_ylim(-0.1, 1.1)
-ax[1].set_ylim(-0.1, 1.1)
+# # ylim
+# ax[0].set_ylim(-0.1, 1.1)
+# ax[1].set_ylim(-0.1, 1.1)
 
-####################################################### Straight lines on event EFI and SOT ############################################
-norm_efi_mean = plt.Normalize(0, vmax_efi)  # vmax from spatial plot
-color_efi_mean = cmap(norm_efi_mean(efi_event))
-norm_sot_mean = plt.Normalize(0, vmax_sot) # vmax from spatial plot 
-color_sot_mean = cmap(norm_sot_mean(sot_event))
+# ####################################################### Straight lines on event EFI and SOT ############################################
+# norm_efi_mean = plt.Normalize(0, vmax_efi)  # vmax from spatial plot
+# color_efi_mean = cmap(norm_efi_mean(efi_event))
+# norm_sot_mean = plt.Normalize(0, vmax_sot) # vmax from spatial plot 
+# color_sot_mean = cmap(norm_sot_mean(sot_event))
 
 
-ax[0].axvline(x=efi_event, color=color_efi_mean, linestyle='--', alpha=1)
-ax[1].axvline(x=sot_event, color=color_sot_mean, linestyle='--', alpha=1)
+# ax[0].axvline(x=efi_event, color=color_efi_mean, linestyle='--', alpha=1)
+# ax[1].axvline(x=sot_event, color=color_sot_mean, linestyle='--', alpha=1)
 
-######################################################## Colored lines for all EFI and SOT ############################################
-def interpolate(x, y, num_points):
-    x_new = np.linspace(x.min(), x.max(), num_points)
-    y_new = np.interp(x_new, x, y)
-    return x_new, y_new
+# ######################################################## Colored lines for all EFI and SOT ############################################
+# def interpolate(x, y, num_points):
+#     x_new = np.linspace(x.min(), x.max(), num_points)
+#     y_new = np.interp(x_new, x, y)
+#     return x_new, y_new
 
-# colored line ax 0
-x, y = ax[0].get_lines()[0].get_data()
-x_new, y_new = interpolate(x, y, len(x) * 2)  # Increase the number of points by 2
-segments = np.array([x_new[:-1], y_new[:-1], x_new[1:], y_new[1:]]).T.reshape(-1, 2, 2)
+# # colored line ax 0
+# x, y = ax[0].get_lines()[0].get_data()
+# x_new, y_new = interpolate(x, y, len(x) * 2)  # Increase the number of points by 2
+# segments = np.array([x_new[:-1], y_new[:-1], x_new[1:], y_new[1:]]).T.reshape(-1, 2, 2)
 
-lc = LineCollection(segments, cmap=cmap, norm=norm_efi_mean,antialiaseds=False)
-lc.set_array(x_new[:-1])
-lc.set_linewidth(1)
-ax[0].get_lines()[0].remove()
-line = ax[0].add_collection(lc)
+# lc = LineCollection(segments, cmap=cmap, norm=norm_efi_mean,antialiaseds=False)
+# lc.set_array(x_new[:-1])
+# lc.set_linewidth(1)
+# ax[0].get_lines()[0].remove()
+# line = ax[0].add_collection(lc)
 
-# colored line ax 1
-x, y = ax[1].get_lines()[0].get_data()
-x_new, y_new = interpolate(x, y, len(x) * 2)  # Increase the number of points by 2
-segments = np.array([x_new[:-1], y_new[:-1], x_new[1:], y_new[1:]]).T.reshape(-1, 2, 2)
+# # colored line ax 1
+# x, y = ax[1].get_lines()[0].get_data()
+# x_new, y_new = interpolate(x, y, len(x) * 2)  # Increase the number of points by 2
+# segments = np.array([x_new[:-1], y_new[:-1], x_new[1:], y_new[1:]]).T.reshape(-1, 2, 2)
 
-lc = LineCollection(segments, cmap=cmap, norm=norm_sot_mean,antialiaseds=False)
-lc.set_array(x_new[:-1])
-lc.set_linewidth(1)
-ax[1].get_lines()[0].remove()
-line = ax[1].add_collection(lc)
+# lc = LineCollection(segments, cmap=cmap, norm=norm_sot_mean,antialiaseds=False)
+# lc.set_array(x_new[:-1])
+# lc.set_linewidth(1)
+# ax[1].get_lines()[0].remove()
+# line = ax[1].add_collection(lc)
 
 ######################################################## Gradient fill ############################################
-if sample=='box':
-    gradient_fill(efi_L1_roi,efi_L1_roi_np, cdf_efi, cmap=cmap, ax=ax[0], downsampling=10)
-    gradient_fill(sot_L1_roi,sot_L1_roi_np, cdf_sot, cmap=cmap, ax=ax[1], downsampling=10)
-if sample=='pixel':
-    gradient_fill(efi_L1,efi_L1_roi_np, cdf_efi, cmap=cmap, ax=ax[0], downsampling=100)
-    gradient_fill(sot_L1,sot_L1_roi_np, cdf_sot, cmap=cmap, ax=ax[1], downsampling=100)
+# if sample=='box':
+#     gradient_fill(efi_L1_roi,efi_L1_roi_np, cdf_efi, cmap=cmap, ax=ax[0], downsampling=10)
+#     gradient_fill(sot_L1_roi,sot_L1_roi_np, cdf_sot, cmap=cmap, ax=ax[1], downsampling=10)
+# if sample=='pixel':
+#     gradient_fill(efi_L1,efi_L1_roi_np, cdf_efi, cmap=cmap, ax=ax[0], downsampling=100)
+#     gradient_fill(sot_L1,sot_L1_roi_np, cdf_sot, cmap=cmap, ax=ax[1], downsampling=100)
 
 
 # add legend for both subplots at once
@@ -665,32 +684,260 @@ if sample=='pixel':
 
 
 # add labels
-ax[0].set_xlabel('EFI')
-ax[0].set_ylabel('CDF')
-ax[1].set_xlabel('SOT')
-ax[1].set_ylabel('CDF')
+# ax[0].set_xlabel('EFI')
+# ax[0].set_ylabel('CDF')
+# ax[1].set_xlabel('SOT')
+# ax[1].set_ylabel('CDF')
 
-ax[1].set_xticks([-3,-2, -1, 0, 1, 2,3,4,5,6,7,8])
+# ax[1].set_xticks([-3,-2, -1, 0, 1, 2,3,4,5,6,7,8])
 
-# save
-plt.savefig(path_figures+'/cdf_efi_sot_%s.png'%(lead_time_cdf), dpi=1000, bbox_inches='tight')
+# # save
+# plt.savefig(path_figures+'/cdf_efi_sot_%s.png'%(lead_time_cdf), dpi=1000, bbox_inches='tight')
+# plt.show()
+
+
+import matplotlib.pyplot as plt
+import cartopy.crs as ccrs
+import cartopy.feature as cfeature
+
+# Ensure ahr_catchment is not empty and contains valid data
+print(ahr_catchment)
+
+# Plot ahr catchment
+fig, ax = plt.subplots(1, 1, figsize=(10, 10), subplot_kw={'projection': ccrs.Mercator()})
+
+# Add coastlines and gridlines for better visualization
+ax.coastlines(resolution='10m')
+ax.add_feature(cfeature.BORDERS, linestyle=':')
+ax.gridlines(draw_labels=True)
+
+# Plot ahr valley
+ahr_catchment.plot(ax=ax, color='green', alpha=0.5, transform=ccrs.Mercator())
+
+# Set the extent to focus on the area where ahr_catchment is located
+ax.set_extent([5, 7, 50, 52], crs=ccrs.PlateCarree())
+
+# Optional: Add a scatter point for reference
+# ax.scatter(7.118, 50.544, s=100, facecolors='none', edgecolors='yellow', marker='D', alpha=1, linewidths=1, transform=ccrs.PlateCarree())
+
 plt.show()
 
 
+#%%
+##################################################################################################################################
+####################################################### EFI/SOT PLOT WITH ACTION TRIGGERS  ################################################
+##################################################################################################################################
+
+##################################################### Process ACTION TRIGGERS #######################################################
+
+#################################################### load trigger table ########################################################
+C_L=0.08
+season='summer'
+
+triggers= pd.read_excel(path_figures+f'/ew_thresholds_{C_L}.xlsx', index_col=0)
+triggers=triggers.loc[triggers['season']==season]
+
+# make a list of triggers.one list for efi and sot (efi first, then sot)
+# Initialize lists to store EFI and SOT values
+efi_triggers = []
+sot_triggers = []
+
+# Loop over the DataFrame to extract EFI and SOT values
+for lead_time, row in triggers.iterrows():
+    efi_triggers.append(row['ew_threshold_efi'])
+    sot_triggers.append(row['ew_threshold_sot'])
+
+
+print('start plotting action triggers')
 
 
 
 
 
+############################################## Plot EFI+SOT #####################################################
+
+vmin_efi=0
+vmax_efi=1
+
+a_e_WE=0.5
+a_e_IT=0.0025
+a_ahr=0.03
+labelsize=17
+cmap_sot=plt.cm.get_cmap('YlOrRd', 16)
+cmap_efi=plt.cm.get_cmap('YlOrRd', 10)
+
+if flood_event=='WE':
+    vmin_sot=0
+    vmax_sot=8
+
+if flood_event=='IT':
+    vmin_sot=0
+    vmax_sot=4
+
+if flood_event=='HALLEIN':
+    vmin_sot=0
+    vmax_sot=4
+
+fig=plt.figure(figsize=(20,7))# (W,H)
+proj0=ccrs.PlateCarree(central_longitude=0)
+# 2 rows 5 cols
+gs=fig.add_gridspec(2,5,wspace=0.05,hspace=0.2)
+ax1=fig.add_subplot(gs[0,0],projection=proj0) # 2:,2:
+ax2=fig.add_subplot(gs[0,1],projection=proj0)
+ax3=fig.add_subplot(gs[0,2],projection=proj0)
+ax4=fig.add_subplot(gs[0,3],projection=proj0)
+ax5=fig.add_subplot(gs[0,4],projection=proj0)
+ax6=fig.add_subplot(gs[1,0],projection=proj0)
+ax7=fig.add_subplot(gs[1,1],projection=proj0)
+ax8=fig.add_subplot(gs[1,2],projection=proj0)
+ax9=fig.add_subplot(gs[1,3],projection=proj0)
+ax10=fig.add_subplot(gs[1,4],projection=proj0)
+
+
+axes = [ax1, ax2, ax3, ax4, ax5, ax6, ax7, ax8, ax9, ax10]
+
+efi_data = [efi_L1_event, efi_L2_event, efi_L3_event, efi_L4_event, efi_L5_event]
+sot_data = [sot_L1_event, sot_L2_event, sot_L3_event, sot_L4_event, sot_L5_event]
+
+plots = []
+
+for i in range(5):
+    plot = efi_data[i].plot.pcolormesh(ax=axes[i], transform=ccrs.PlateCarree(central_longitude=0), add_colorbar=False, vmin=vmin_efi, vmax=vmax_efi, cmap=cmap_efi)
+    plots.append(plot)
+    # title: initiation time: (X days lead)
+    if i==0:
+        axes[i].set_title(r"$\bf{"+ str(i+1) + '\ day\ lead' + "}$" + '\n' + 'Initiation : '+(str(efi_data[i].init_time.values)[:-8]) + ' 00 UTC')
+    else:
+        axes[i].set_title(r"$\bf{"+ str(i+1) + '\ days\ lead' + "}$" + '\n' + 'Initiation : '+(str(efi_data[i].init_time.values)[:-8]) + ' 00 UTC')
+
+    axes[i].coastlines()
+    axes[i].add_feature(cfeature.BORDERS)
+
+
+    ################################ plot action triggers ################################
+    axes_i=0
+
+    ############# plot action triggers ################
+    trigger_value=efi_triggers[i]
+    print(trigger_value)
+
+    # Create a mask for pixels greater than the trigger value
+    mask = efi_data[i] > trigger_value
+
+
+    masked_data = efi_data[i].where(mask)
+    #masked_data.plot.pcolormesh(ax=axes[i], transform=ccrs.PlateCarree(), cmap='Blues', alpha=1, vmin=vmin_efi, vmax=vmin_efi, add_colorbar=False)
+
+    contour = axes[i].contour(masked_data.longitude, masked_data.latitude, mask, levels=[0.5], colors='black', linewidths=2, transform=ccrs.PlateCarree())
 
 
 
 
+    # plot lon-lat box analysis as a bounding box
+    #axes[i].plot([lon_lat_box_analysis[0], lon_lat_box_analysis[0], lon_lat_box_analysis[1], lon_lat_box_analysis[1], lon_lat_box_analysis[0]], [lon_lat_box_analysis[2], lon_lat_box_analysis[3], lon_lat_box_analysis[3], lon_lat_box_analysis[2], lon_lat_box_analysis[2]], color='black', linewidth=2, transform=ccrs.PlateCarree(central_longitude=0))
+
+for i in range(5, 10):
+    print(i)
+    plot = sot_data[i-5].plot.pcolormesh(ax=axes[i], transform=ccrs.PlateCarree(central_longitude=0), add_colorbar=False, vmin=vmin_sot, vmax=vmax_sot, cmap=cmap_sot)
+    plots.append(plot)
+    axes[i].set_title('')
+    axes[i].coastlines()
+    axes[i].add_feature(cfeature.BORDERS)
+
+    ################################ plot action triggers ################################
+
+    ############# plot action triggers ################
+    trigger_value=sot_triggers[i-5]
+    print(trigger_value)
+
+    # Create a mask for pixels greater than the trigger value
+    mask = sot_data[i-5] > trigger_value
+
+
+    masked_data = sot_data[i-6].where(mask)
+    #masked_data.plot.pcolormesh(ax=axes[i], transform=ccrs.PlateCarree(), cmap='Blues', alpha=1, vmin=vmin_sot, vmax=vmax_sot, add_colorbar=False)
+
+    contour = axes[i].contour(masked_data.longitude, masked_data.latitude, mask, levels=[0.5], colors='black', linewidths=2, transform=ccrs.PlateCarree())
 
 
 
+    # plot lon-lat box analysis as a bounding box
+    #axes[i].plot([lon_lat_box_analysis[0], lon_lat_box_analysis[0], lon_lat_box_analysis[1], lon_lat_box_analysis[1], lon_lat_box_analysis[0]], [lon_lat_box_analysis[2], lon_lat_box_analysis[3], lon_lat_box_analysis[3], lon_lat_box_analysis[2], lon_lat_box_analysis[2]], color='black', linewidth=2, transform=ccrs.PlateCarree(central_longitude=0))
+
+
+# color_bar 1
+cax1= fig.add_axes([0.07,0.55,0.01,0.3]) #[left, bottom, width, height]
+cbar=plt.colorbar(plots[0],pad=0.00,cax=cax1,orientation='vertical',cmap=cmap_efi)
+cbar.set_label(label=r'EFI$_{precipitation}$', size='20', weight='bold')
+cbar.ax.tick_params(labelsize=15)
+cbar.set_ticks(np.round(cbar.get_ticks(),2))
+
+# Now you can refer to plot6 as plots[5]
+cax2= fig.add_axes([0.07,0.15,0.01,0.3]) #[left, bottom, width, height]
+cbar=plt.colorbar(plots[5],pad=0.00,cax=cax2,orientation='vertical',cmap=cmap_sot)
+cbar.set_label(label=r'SOT$_{precipitation}$', size='20', weight='bold')
+cbar.ax.tick_params(labelsize=15)
+cbar.set_ticks(np.round(cbar.get_ticks(),2))
 
 
 
+##################################################### PLOT ACTION TRIGGERS #######################################################
 
+##################################################### PLOT ACTION TRIGGERS #######################################################
+if flood_event=='WE':
+    for ax in axes:
+        print(ax)
+        #ax.scatter(row['lon'], row['lat'], s=100, c='black', marker="x", alpha=a_e_WE, transform=ccrs.PlateCarree(central_longitude=0))
+        #blue empty circles
+
+        ax.scatter(7.118, 50.544, s=100, facecolors='none', edgecolors='yellow', marker='D', alpha=1, linewidths=1, transform=ccrs.PlateCarree(central_longitude=0))
+        
+        ############# plot ahr valley ################
+        ahr_catchment.plot(ax=ax, color='green', alpha=0.5, transform=ccrs.Mercator())
+        
+
+        ########################### ACTIVATE EM-DAT ################################
+        for i in range(len(emdat_flood)):
+            print(i)
+            row = emdat_flood.iloc[i]
+    
+            if plot_europe==False: 
+                ax.scatter(row['lon'], row['lat'], s=40, edgecolors='#3f3fd4', facecolors='none', marker="o", linewidths=1,alpha=1, transform=ccrs.PlateCarree(central_longitude=0))
+                
+        
+        #location of Bad neuenahr ahrweiler 
+        #ax.scatter(7.1, 50.5, s=100, c='Green', marker='D', alpha=a_ahr, transform=ccrs.PlateCarree(central_longitude=0))
+
+if flood_event=='IT':
+    ########################### ACTIVATE COPERNICUS EMERGENCY MANAGEMENT SERVICE ################################
+    for ax in axes:
+        if plot_europe==False:
+            IT_floods.plot(ax=ax, color='yellow', alpha=a_e_IT, transform=ccrs.PlateCarree(central_longitude=0), marker="x", markersize=100)
+        #ax.scatter(7.1, 50.5, s=50, c='Green', marker='D', alpha=a_ahr, transform=ccrs.PlateCarree(central_longitude=0))
+
+if flood_event=='HALLEIN':
+    for ax in axes:
+        if plot_europe==False:
+            ax.scatter(13.1, 47.7, s=100, c='Green', marker='D', alpha=1, transform=ccrs.PlateCarree(central_longitude=0))
+
+
+
+# Add gridlines and labels to the plots
+for ax in axes:
+    gl = ax.gridlines(draw_labels=True, crs=ccrs.PlateCarree(), xlocs=mticker.MultipleLocator(3), ylocs=mticker.MultipleLocator(3),  linewidth=0)
+    gl.top_labels = False
+    gl.left_labels = False
+    if ax in [ax6, ax7, ax8, ax9, ax10]:  # second row
+        gl.bottom_labels = True
+    else:
+        gl.bottom_labels = False
+    if ax in [ax5, ax10]:  # last column
+        gl.right_labels = True
+    else:
+        gl.right_labels = False
+
+
+
+plt.savefig(path_figures+'/efi_sot_action_%s.pdf'%flood_event,bbox_inches='tight', dpi=800)
+plt.show()
 

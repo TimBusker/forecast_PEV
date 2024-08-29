@@ -53,7 +53,7 @@ resolution = "025"  # 0.125 or 0.25
 
 file_indicator = "ES"  # The files are named ES. This contains ES, sot and efi dims. Used to load obs_for files --> for 1 degree, select 'ES_1'
 save_annotation = (
-    ""  # this is an extra option to include a remark in the save file name.
+    "spring_major2"  # this is an extra option to include a remark in the save file name.
 )
 
 # make a dictionary with 'summer' string as key and the months (6,7,8) as values, 'aut' (9,10,11), 'winter' (12,1,2), 'spring' (3,4,5)
@@ -80,8 +80,8 @@ print(selected_months)
 
 start_date = "2016-03-08"  # implementation of cycle CY41R2 from 32km to 16km res
 limit_t = True
-CL_config = "minor"  # 'minor' or 'major'
-EW_config = "minor"  # 'minor' or 'major'
+CL_config = "major"  # 'minor' or 'major'
+EW_config = "major"  # 'minor' or 'major'
 q_method = "seasonal"  # 'seasonal' or 'daily'
 method = "return_periods"  # 'quantile_extremes' or 'return_periods'
 
@@ -113,7 +113,7 @@ Select the precipitation threshold. The following options are supported in this 
 """
 
 p_thresholds = ["5RP"] # 10RP
-indicators = ["sot", "efi"]  # ES, efi or sot --> ES is combined efi+sot, if you need efi + sot seperately, the script needs to run twice.
+indicators = ["sot"]  # ES, efi or sot --> ES is combined efi+sot, if you need efi + sot seperately, the script needs to run twice.
 
 
 for indicator in indicators:

@@ -23,6 +23,7 @@ from matplotlib.collections import LineCollection
 import matplotlib.ticker as mticker
 from matplotlib.patches import Polygon
 from matplotlib.colors import LinearSegmentedColormap
+import matplotlib.lines as mlines
 import geopandas as gpd
 
 geolocator = Nominatim(user_agent="hornofafrica")
@@ -696,31 +697,6 @@ def gradient_fill(c,x, y, cmap, ax=None, downsampling=1):
 # plt.show()
 
 
-import matplotlib.pyplot as plt
-import cartopy.crs as ccrs
-import cartopy.feature as cfeature
-
-# Ensure ahr_catchment is not empty and contains valid data
-print(ahr_catchment)
-
-# Plot ahr catchment
-fig, ax = plt.subplots(1, 1, figsize=(10, 10), subplot_kw={'projection': ccrs.Mercator()})
-
-# Add coastlines and gridlines for better visualization
-ax.coastlines(resolution='10m')
-ax.add_feature(cfeature.BORDERS, linestyle=':')
-ax.gridlines(draw_labels=True)
-
-# Plot ahr valley
-ahr_catchment.plot(ax=ax, color='green', alpha=0.5, transform=ccrs.Mercator())
-
-# Set the extent to focus on the area where ahr_catchment is located
-ax.set_extent([5, 7, 50, 52], crs=ccrs.PlateCarree())
-
-# Optional: Add a scatter point for reference
-# ax.scatter(7.118, 50.544, s=100, facecolors='none', edgecolors='yellow', marker='D', alpha=1, linewidths=1, transform=ccrs.PlateCarree())
-
-plt.show()
 
 
 #%%
@@ -730,29 +706,44 @@ plt.show()
 
 ##################################################### Process ACTION TRIGGERS #######################################################
 
-#################################################### load trigger table ########################################################
-C_L=0.08
-season='summer'
 
-triggers= pd.read_excel(path_figures+f'/ew_thresholds_{C_L}.xlsx', index_col=0)
-triggers=triggers.loc[triggers['season']==season]
+# Define the list of C_L values
+C_L_values = [0.01,0.08, 0.3] 
+season = 'summer'
+p_threshold = "10RP"
+# Initialize an empty DataFrame to store the combined data
+combined_triggers = pd.DataFrame()
 
-# make a list of triggers.one list for efi and sot (efi first, then sot)
-# Initialize lists to store EFI and SOT values
-efi_triggers = []
-sot_triggers = []
+# Loop over each C_L value
+for C_L in C_L_values:
+    # Read the corresponding Excel file
+    triggers = pd.read_excel(f'{path_figures}/ew_thresholds_{C_L}_{p_threshold}.xlsx', index_col=0)
+    
+    # Filter the DataFrame for the specified season
+    triggers = triggers.loc[triggers['season'] == season]
+    
+    # Add a column for the C_L value
+    triggers['C_L'] = C_L
+    
+    # Append the filtered DataFrame to the combined DataFrame
+    combined_triggers = pd.concat([combined_triggers, triggers])
 
-# Loop over the DataFrame to extract EFI and SOT values
-for lead_time, row in triggers.iterrows():
-    efi_triggers.append(row['ew_threshold_efi'])
-    sot_triggers.append(row['ew_threshold_sot'])
+# Reset the index of the combined DataFrame
+combined_triggers.reset_index(inplace=True)
+
+# select season 
+combined_triggers=combined_triggers.loc[combined_triggers['season']==season]
+# Print the combined DataFrame
+print(combined_triggers)
 
 
-print('start plotting action triggers')
 
+# set extra threshold on PEV value to be displayed (<0 is already not displayed)
+# set threshold values of pev<0.2 to np.nan
+combined_triggers.loc[combined_triggers['PEV_efi']<0.2, 'ew_threshold_efi'] = np.nan
+combined_triggers.loc[combined_triggers['PEV_sot']<0.2, 'ew_threshold_sot'] = np.nan
 
-
-
+lead_times=list(combined_triggers['lead'].unique())
 
 ############################################## Plot EFI+SOT #####################################################
 
@@ -815,20 +806,24 @@ for i in range(5):
 
 
     ################################ plot action triggers ################################
-    axes_i=0
+    lead_time_triggers = combined_triggers.loc[combined_triggers.lead == lead_times[i]]
+    # 3 colors: black, dark brown and gray
+    colors_cl = ['black', 'green', 'gray']
+    # plot 3 triggers for three C_L values 
+    for cl in C_L_values:
+        
+        ############# plot action triggers ################
+        trigger_value=float(lead_time_triggers.loc[lead_time_triggers.C_L == cl].ew_threshold_efi.values[0])
 
-    ############# plot action triggers ################
-    trigger_value=efi_triggers[i]
-    print(trigger_value)
 
-    # Create a mask for pixels greater than the trigger value
-    mask = efi_data[i] > trigger_value
+        # Create a mask for pixels greater than the trigger value
+        mask = efi_data[i] > trigger_value
 
 
-    masked_data = efi_data[i].where(mask)
-    #masked_data.plot.pcolormesh(ax=axes[i], transform=ccrs.PlateCarree(), cmap='Blues', alpha=1, vmin=vmin_efi, vmax=vmin_efi, add_colorbar=False)
+        masked_data = efi_data[i].where(mask)
+        #masked_data.plot.pcolormesh(ax=axes[i], transform=ccrs.PlateCarree(), cmap='Blues', alpha=1, vmin=vmin_efi, vmax=vmin_efi, add_colorbar=False)
 
-    contour = axes[i].contour(masked_data.longitude, masked_data.latitude, mask, levels=[0.5], colors='black', linewidths=2, transform=ccrs.PlateCarree())
+        contour = axes[i].contour(masked_data.longitude, masked_data.latitude, mask, levels=[0.5], colors=colors_cl[C_L_values.index(cl)], linewidths=2, transform=ccrs.PlateCarree())
 
 
 
@@ -846,18 +841,27 @@ for i in range(5, 10):
 
     ################################ plot action triggers ################################
 
-    ############# plot action triggers ################
-    trigger_value=sot_triggers[i-5]
-    print(trigger_value)
 
-    # Create a mask for pixels greater than the trigger value
-    mask = sot_data[i-5] > trigger_value
+    ################################ plot action triggers ################################
+    lead_time_triggers = combined_triggers.loc[combined_triggers.lead == lead_times[i-5]]
+    # 3 colors: black, dark brown and gray
+    colors_cl = ['black', 'brown', 'gray']
+    # plot 3 triggers for three C_L values 
+    for cl in C_L_values:
+        
+        ############# plot action triggers ################
+        trigger_value=float(lead_time_triggers.loc[lead_time_triggers.C_L == cl].ew_threshold_sot.values[0])
 
 
-    masked_data = sot_data[i-6].where(mask)
-    #masked_data.plot.pcolormesh(ax=axes[i], transform=ccrs.PlateCarree(), cmap='Blues', alpha=1, vmin=vmin_sot, vmax=vmax_sot, add_colorbar=False)
+        # Create a mask for pixels greater than the trigger value
+        mask = sot_data[i-5] > trigger_value
 
-    contour = axes[i].contour(masked_data.longitude, masked_data.latitude, mask, levels=[0.5], colors='black', linewidths=2, transform=ccrs.PlateCarree())
+
+        masked_data = sot_data[i-5].where(mask)
+        #masked_data.plot.pcolormesh(ax=axes[i], transform=ccrs.PlateCarree(), cmap='Blues', alpha=1, vmin=vmin_efi, vmax=vmin_efi, add_colorbar=False)
+
+        contour = axes[i].contour(masked_data.longitude, masked_data.latitude, mask, levels=[0.5], colors=colors_cl[C_L_values.index(cl)], linewidths=2, transform=ccrs.PlateCarree())
+
 
 
 
@@ -879,7 +883,11 @@ cbar.set_label(label=r'SOT$_{precipitation}$', size='20', weight='bold')
 cbar.ax.tick_params(labelsize=15)
 cbar.set_ticks(np.round(cbar.get_ticks(),2))
 
+# Create custom legend handles for C/L values
+legend_handles = [mlines.Line2D([], [], color=color, linewidth=2, label=f'C/L={cl}') for color, cl in zip(colors_cl, C_L_values)]
 
+# Add the legend to the figure
+fig.legend(handles=legend_handles, loc='lower right', bbox_to_anchor=(1.05, 0.1), title='C/L values', title_fontsize='15', fontsize='15')
 
 ##################################################### PLOT ACTION TRIGGERS #######################################################
 
@@ -890,10 +898,10 @@ if flood_event=='WE':
         #ax.scatter(row['lon'], row['lat'], s=100, c='black', marker="x", alpha=a_e_WE, transform=ccrs.PlateCarree(central_longitude=0))
         #blue empty circles
 
-        ax.scatter(7.118, 50.544, s=100, facecolors='none', edgecolors='yellow', marker='D', alpha=1, linewidths=1, transform=ccrs.PlateCarree(central_longitude=0))
+        #ax.scatter(7.118, 50.544, s=100, facecolors='none', edgecolors='yellow', marker='D', alpha=1, linewidths=1, transform=ccrs.PlateCarree(central_longitude=0))
         
         ############# plot ahr valley ################
-        ahr_catchment.plot(ax=ax, color='green', alpha=0.5, transform=ccrs.Mercator())
+        ahr_catchment.plot(ax=ax, edgecolors='yellow', facecolor='none', alpha=1, linewidths=1.2, transform=ccrs.Mercator())
         
 
         ########################### ACTIVATE EM-DAT ################################
@@ -938,6 +946,6 @@ for ax in axes:
 
 
 
-plt.savefig(path_figures+'/efi_sot_action_%s.pdf'%flood_event,bbox_inches='tight', dpi=800)
+plt.savefig(path_figures+'/efi_sot_action_%s_%s.pdf'%(flood_event,p_threshold),bbox_inches='tight', dpi=800)
 plt.show()
 

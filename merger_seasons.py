@@ -57,7 +57,7 @@ path_return_periods = "/scistor/ivm/tbr910/precip_analysis/return_periods_europe
 
 
 
-day_month='28_08'
+day_month='30_08'
 lead_times = ["1 days", "2 days", "3 days", "4 days", "5 days"]
 shift = 1  # then 95/2. was 1?
 """
@@ -87,7 +87,7 @@ Select the precipitation threshold. The following options are supported in this 
 indicators=["efi", "sot"] # "efi", "sot", "ES"
 p_thresholds = ["5RP"] # 10RP
 
-whole_period=False
+whole_period=True
 
 seasons=['summer', 'winter', 'aut', 'spring']
 
@@ -113,7 +113,7 @@ for indicator in indicators:
         Fval_area_merged=xr.Dataset()
         n_events_area_merged=xr.Dataset()
         for season in seasons: 
-            file_accessor = f'{indicator}_{day_month}_{str(p_threshold).replace(".","")}_S{shift}_{season}.nc'  # file accessor from the 'save_string' variable in PEV.py
+            file_accessor = f'{indicator}_{day_month}_{str(p_threshold).replace(".","")}_S{shift}{season}.nc'  # file accessor from the 'save_string' variable in PEV.py
             
             cont = xr.open_dataset(path_verif+"/cont_metrics_merged_%s" %(file_accessor))
             Fval = xr.open_dataset(path_verif+"/Fval_merged_%s" %(file_accessor))

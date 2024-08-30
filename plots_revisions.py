@@ -73,9 +73,9 @@ path_return_periods = "/scistor/ivm/tbr910/precip_analysis/return_periods_europe
 indicator = "sot"  # efi, sot (or ES?)
 shift = 1
 resolution = "025"
-day_month = "28_08"  # day and month seperated by an underscore
-loader = "_summer" # extra desciption that was added to the input files in PEV.py (optional)
-eu_map_loader='' # '_seasonal' or '' (empty string) to load the seasonal or non-seasonal map
+day_month = "30_08"  # day and month seperated by an underscore
+loader = "_summer_major2" # extra desciption that was added to the input files in PEV.py (optional)
+eu_map_loader='_major2' # '_seasonal' or '' (empty string) to load the seasonal or non-seasonal map
 
 # plot config 
 log_axis=True # if True, plot the x-axis on a log scale
@@ -276,10 +276,11 @@ else:  # or select the Fval for a specific C_L ratio
 
 ########################## Plot parameters ##########################
 vmin = 0.0  # min value for the colorbar
-vmax = 0.7  # max value for the colorbar
+vmax = 1  # max value for the colorbar
 
 # red to green colormap
-cmap_F = plt.cm.get_cmap("RdYlGn", 14)
+cmap_F = plt.cm.get_cmap("RdYlBu", 14) # colormap, colorblindfriendly
+
 # cmap_F=plt.cm.get_cmap('Greens', 10) # alternative colormap
 
 
@@ -592,7 +593,7 @@ def plot_data(
     lead = str(Fval_lead.lead.values)
     ax.set_title("lead=%s" % (lead), size=title_size)
     #ax.set_xlabel(label_x, size=label_x_size, weight="bold")
-# ax.set_xlim(x_lim)
+    # ax.set_xlim(x_lim)
     ax.set_ylim([0, y_lim])
     #ax.set_xticks(x_ticks)
     ax.set_yticks(y_ticks)
@@ -1301,7 +1302,7 @@ os.chdir(path_verif)
 
 # reload the data
 seasons=['spring','summer','aut','winter']
-df= pd.DataFrame(columns=['lead','season','ew_threshold_efi','ew_threshold_sot'])
+df = pd.DataFrame(columns=['lead', 'season', 'ew_threshold_efi', 'ew_threshold_sot', 'PEV_efi', 'PEV_sot'])
 for season in seasons: 
     file_accessor= f'{day_month}_{str(p_threshold).replace(".","")}_S{shift}_{season}.nc'  # file accessor for area files (no seasonal threshold)
     Fval_region_efi2 = xr.open_dataset("Fval_area_merged_efi_%s" % (file_accessor))
@@ -1395,13 +1396,14 @@ for season in seasons:
         if Fval_max_sot2<=0:
             ew_max_sot2 = np.nan
         # add to the dataframe
-        df.loc[len(df)] = [lead_cont2,season,ew_max_efi2,ew_max_sot2]
+        df.loc[len(df)] = [lead_cont2, season, ew_max_efi2, ew_max_sot2, Fval_max_efi2, Fval_max_sot2]
 
         if find_C_L_max == True:
             C_L_string = "CL_max"
         else:
             C_L_string = str(C_L_best_estimate)
-        df.to_excel(path_figs + "/ew_thresholds_%s.xlsx" % (C_L_string), index=False)
+        
+df.to_excel(path_figs + "/ew_thresholds_%s_%s.xlsx" % (C_L_string, p_threshold), index=False)
 
 #%%
 ###############################################################################################################################

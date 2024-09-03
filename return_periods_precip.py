@@ -42,8 +42,18 @@ path_verif= '/scistor/ivm/tbr910/precip_analysis/verif_files'
 path_obs_for_new= '/scistor/ivm/tbr910/precip_analysis/obs_for_new_LT'
 path_return_periods = "/scistor/ivm/tbr910/precip_analysis/return_periods_europe"
 
-# set dask to split large chunks 
-dask.config.set({"array.slicing.split_large_chunks": True})
+"""
+lon lat boxes 
+"[2.5, 14, 47.5, 55] --> large area Western Europe (used till now)
+[3.95,7.8,49.3,51.3] --> Affected by 2021 floods
+[-10, 20, 39, 55] --> much larger (rondom?) area
+[1,7.8,48,52] --> area based on many events
+[3.5,7.8,48,52] --> area based on many events (excluding coastal area of france)
+"""
+
+lon_lat_box = [3.5, 7.8, 48, 52]  # [lon_min, lon_max, lat_min, lat_max]
+lon_slice = slice(lon_lat_box[0], lon_lat_box[1])  # in case of area selection
+lat_slice = slice(lon_lat_box[2], lon_lat_box[3])  # in case of area selection
 
 
 ############################################ Load observations, select time of analysis #############################################
@@ -51,6 +61,7 @@ dask.config.set({"array.slicing.split_large_chunks": True})
 os.chdir(path_obs)
 precip=xr.open_dataset('rr_ens_mean_0.25deg_reg_v28.0e.nc') # 025 deg
 precip=precip.sel(time=slice("2016-03-08", "2023-12-31"))
+precip=precip.sel(longitude=lon_slice, latitude=lat_slice)
 print(os.listdir(path_return_periods))
 
 ############################################ Load return period maps  #############################################
@@ -111,24 +122,24 @@ spring_months_percentage= spring_months/len(precip_5RP_exc.time)
 print(spring_months_percentage)
 
 # feb march april
-fma_months = len((precip_5RP_exc.where(precip_5RP_exc['time.month']==2, drop=True)).time)  + len((precip_5RP_exc.where(precip_5RP_exc['time.month']==3, drop=True)).time) + len((precip_5RP_exc.where(precip_5RP_exc['time.month']==4, drop=True)).time)
-fma_months_percentage= fma_months/len(precip_5RP_exc.time)
+aut_months = len((precip_5RP_exc.where(precip_5RP_exc['time.month']==9, drop=True)).time)  + len((precip_5RP_exc.where(precip_5RP_exc['time.month']==10, drop=True)).time) + len((precip_5RP_exc.where(precip_5RP_exc['time.month']==11, drop=True)).time)
+fma_months_percentage= aut_months/len(precip_5RP_exc.time)
 print(fma_months_percentage)
 
 
 # average precipitation per season from precip
-precip_seasons=precip.groupby('time.season').mean().mean(dim=('latitude', 'longitude'))
-# 4x4 subplot of the seasons
-fig, axs = plt.subplots(2, 2, figsize=(10, 10))
-precip_seasons.rr.sel(season='DJF').plot(ax=axs[0, 0], vmin=0, vmax=10)
-axs[0, 0].set_title('DJF')
-precip_seasons.rr.sel(season='MAM').plot(ax=axs[0, 1], vmin=0, vmax=10)
-axs[0, 1].set_title('MAM')
-precip_seasons.rr.sel(season='JJA').plot(ax=axs[1, 0], vmin=0, vmax=10)
-axs[1, 0].set_title('JJA')
-precip_seasons.rr.sel(season='SON').plot(ax=axs[1, 1], vmin=0, vmax=10)
-axs[1, 1].set_title('SON')
-plt.show()
+# precip_seasons=precip.groupby('time.season').mean().mean(dim=('latitude', 'longitude'))
+# # 4x4 subplot of the seasons
+# fig, axs = plt.subplots(2, 2, figsize=(10, 10))
+# precip_seasons.rr.sel(season='DJF').plot(ax=axs[0, 0], vmin=0, vmax=10)
+# axs[0, 0].set_title('DJF')
+# precip_seasons.rr.sel(season='MAM').plot(ax=axs[0, 1], vmin=0, vmax=10)
+# axs[0, 1].set_title('MAM')
+# precip_seasons.rr.sel(season='JJA').plot(ax=axs[1, 0], vmin=0, vmax=10)
+# axs[1, 0].set_title('JJA')
+# precip_seasons.rr.sel(season='SON').plot(ax=axs[1, 1], vmin=0, vmax=10)
+# axs[1, 1].set_title('SON')
+# plt.show()
 
-precip_seasons.rr.plot()
-plt.show()
+# precip_seasons.rr.plot()
+# plt.show()

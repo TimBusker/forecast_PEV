@@ -74,8 +74,16 @@ indicator = "sot"  # efi, sot (or ES?)
 shift = 1
 resolution = "025"
 day_month = "30_08"  # day and month seperated by an underscore
-loader = "_summer_major2" # extra desciption that was added to the input files in PEV.py (optional)
-eu_map_loader='_major2' # '_seasonal' or '' (empty string) to load the seasonal or non-seasonal map
+
+# vars to load the area files 
+season = "_spring" # Empty for all seasons (extra desciption that was added to the input files in PEV.py (optional)). _season to select a specific season
+addition='' # _description --> for Fval graphs seasonal thresholds are not yet supported (needs change in code)
+loader=season+addition # loader for the area files
+
+# vars to load the Europe map --> for European map 
+season_EU="_spring" # Empty for all seasons (extra desciption that was added to the input files in PEV.py (optional)). _season to select a specific season
+addition_EU='' # _description
+eu_map_loader=season_EU+addition_EU # loader for the EU files
 
 # plot config 
 log_axis=True # if True, plot the x-axis on a log scale
@@ -87,7 +95,7 @@ Define precipitation threshold, options:
 - Fixed rainfall amounts (mm): 40, 60, 90 (method var: threshold_method, not implemented yet?)
 - Fixed return periods: 5RP, 10RP, 20RP (method var: return_periods)
 """
-p_threshold = "5RP"
+p_threshold = "10RP"
 expected_CF= 1/(int(p_threshold.replace("RP",""))*365) # expected coverage factor for the return period
 
 
@@ -103,7 +111,6 @@ os.chdir(path_verif)
 
 
 # Europe files
-
 file_accessor_EU_map = f'{day_month}_{str(p_threshold).replace(".","")}_S{shift}{eu_map_loader}.nc'  # takes already the max Fval file 
 Fval_merged_efi = xr.open_dataset("Fval_merged_efi_%s" % (file_accessor_EU_map)) # load seasonal or non-seasonal map
 Fval_merged_sot = xr.open_dataset("Fval_merged_sot_%s" % (file_accessor_EU_map)) # load seasonal or non-seasonal map
@@ -199,7 +206,7 @@ cont_efi_eu.n_events.isel(lead=0).isel(ew_threshold=1).plot.pcolormesh(
 cbar = plt.colorbar(ax.collections[0], ax=ax, boundaries=bounds, ticks=bounds)
 cbar.set_label('Number of Events')
 
-ax.set_title(f"number of events over all seasons", size=20)
+ax.set_title(f"number of events over {season_EU} seasons", size=20)
 gl = ax.gridlines(
     crs=proj0, draw_labels=True, linewidth=2, color="gray", alpha=0.5, linestyle="--"
 )
@@ -276,10 +283,10 @@ else:  # or select the Fval for a specific C_L ratio
 
 ########################## Plot parameters ##########################
 vmin = 0.0  # min value for the colorbar
-vmax = 1  # max value for the colorbar
+vmax = 0.8  # max value for the colorbar
 
 # red to green colormap
-cmap_F = plt.cm.get_cmap("RdYlBu", 14) # colormap, colorblindfriendly
+cmap_F = plt.cm.get_cmap("RdYlBu", 16) # colormap, colorblindfriendly
 
 # cmap_F=plt.cm.get_cmap('Greens', 10) # alternative colormap
 
@@ -1302,6 +1309,7 @@ os.chdir(path_verif)
 
 # reload the data
 seasons=['spring','summer','aut','winter']
+seasons=[season+addition for season in seasons]
 df = pd.DataFrame(columns=['lead', 'season', 'ew_threshold_efi', 'ew_threshold_sot', 'PEV_efi', 'PEV_sot'])
 for season in seasons: 
     file_accessor= f'{day_month}_{str(p_threshold).replace(".","")}_S{shift}_{season}.nc'  # file accessor for area files (no seasonal threshold)
@@ -1403,7 +1411,7 @@ for season in seasons:
         else:
             C_L_string = str(C_L_best_estimate)
         
-df.to_excel(path_figs + "/ew_thresholds_%s_%s.xlsx" % (C_L_string, p_threshold), index=False)
+df.to_excel(path_figs + "/ew_thresholds_%s_%s_%s.xlsx" % (C_L_string, p_threshold, addition), index=False)
 
 #%%
 ###############################################################################################################################

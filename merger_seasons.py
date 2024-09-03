@@ -31,10 +31,9 @@ import pandas as pd
 
 
 # import all functions from function.py (in home dir)
-#sys.path.append("/scistor/ivm/tbr910/")
-#from functions import *
-#season='aut'
-#rename_files("/scistor/ivm/tbr910/precip_analysis/verif_files", f"S1{season}",f"S1_{season}", season)
+# sys.path.append("/scistor/ivm/tbr910/")
+# from functions import *
+# rename_files("/scistor/ivm/tbr910/precip_analysis/verif_files", f"S1winter",f"S1_winter")
 # %%
 ###############################################################################################################################
 ##################################################### Setup ###################################################################
@@ -57,7 +56,9 @@ path_return_periods = "/scistor/ivm/tbr910/precip_analysis/return_periods_europe
 
 
 
-day_month='30_08'
+day_month='02_09'
+addition= "_NO_2021"
+p_thresholds = ["5RP"] # 10RP
 lead_times = ["1 days", "2 days", "3 days", "4 days", "5 days"]
 shift = 1  # then 95/2. was 1?
 """
@@ -69,7 +70,7 @@ lon lat boxes
 [3.5,7.8,48,52] --> area based on many events (excluding coastal area of france)
 """
 
-lon_lat_box = [3.5, 7.8, 48, 52]  # [lon_min, lon_max, lat_min, lat_max]
+lon_lat_box = [3.5, 7.8, 48, 52]  # [lon_min, lon_max, lat_min, lat_max] 
 lon_slice = slice(lon_lat_box[0], lon_lat_box[1])  # in case of area selection
 lat_slice = slice(lon_lat_box[3], lon_lat_box[2])  # in case of area selection
 
@@ -85,14 +86,8 @@ Select the precipitation threshold. The following options are supported in this 
 
 """
 indicators=["efi", "sot"] # "efi", "sot", "ES"
-p_thresholds = ["5RP"] # 10RP
-
-whole_period=True
-
 seasons=['summer', 'winter', 'aut', 'spring']
-
-if whole_period==True:
-    seasons= [i+'_WHOLE_PERIOD' for i in seasons]
+seasons= [i+ addition for i in seasons]
 
 
 
@@ -113,16 +108,22 @@ for indicator in indicators:
         Fval_area_merged=xr.Dataset()
         n_events_area_merged=xr.Dataset()
         for season in seasons: 
-            file_accessor = f'{indicator}_{day_month}_{str(p_threshold).replace(".","")}_S{shift}{season}.nc'  # file accessor from the 'save_string' variable in PEV.py
+            file_accessor = f'{indicator}_{day_month}_{str(p_threshold).replace(".","")}_S{shift}_{season}.nc'  # file accessor from the 'save_string' variable in PEV.py
             
-            cont = xr.open_dataset(path_verif+"/cont_metrics_merged_%s" %(file_accessor))
-            Fval = xr.open_dataset(path_verif+"/Fval_merged_%s" %(file_accessor))
-            Fval_area = xr.open_dataset(path_verif+"/Fval_area_merged_%s" %(file_accessor))
+            cont = xr.open_dataset(path_verif+"/cont_metrics_merged_%s" %(file_accessor)) # cont metrics (and n_events) for EU for specific season. Already filtered for n_events (PEV becomes zero with zero events)
+            Fval = xr.open_dataset(path_verif+"/Fval_merged_%s" %(file_accessor)) # Automatically filtered for n_events
+            Fval_area = xr.open_dataset(path_verif+"/Fval_area_merged_%s" %(file_accessor))# filtered for n_events
             n_events_area=Fval_area.n_events
 
             #Calculate Fval_max 
             Fval_max=Fval.max(dim=("ew_threshold"), keep_attrs=True)
             Fval_area_max=Fval_area.max(dim=("ew_threshold"),keep_attrs=True)
+
+            # filter areas with less 0 events
+            n_events = cont.isel(ew_threshold=0).n_events.drop_vars('ew_threshold')
+            cont=cont.where(n_events> 0, np.nan) # necessary to exclude pixels with no events in cont metrics 
+
+            #Fval_area_max=Fval_area_max.where(n_events_area> 0, np.nan) # fval_area_max is already filtered in PEV.py 
 
             # Add the season dimension
             #cont = cont.expand_dims({'season': [season]})
@@ -141,19 +142,19 @@ for indicator in indicators:
         # n_events map 
 
         # calculate sum of cont metrics
-        cont_metrics_merged=cont_metrics_merged.sum(dim='season')
+        cont_metrics_merged=cont_metrics_merged.sum(dim='season') # sum of hits, misses, false alarms, correct negatives and n_events
         #cont_metrics_merged=cont_metrics_merged.where(cont_metrics_merged.n_events > 0, np.nan)
         
         # n_events map
-        n_events=cont_metrics_merged.isel(ew_threshold=0).n_events.drop_vars('ew_threshold')
+        #n_events_total=cont_metrics_merged.isel(ew_threshold=0).n_events.drop_vars('ew_threshold')
         
         # calculate the mean of the Fval_max and Fval_area_max
-        Fval_max_seasonal=Fval_max_merged.mean(dim='season')
+        Fval_max_seasonal=Fval_max_merged.mean(dim='season') # skipna is true by default (its a float)
         Fval_area_max_seasonal=Fval_area_max_merged.mean(dim='season', keep_attrs=True)
         
         # filter areas with less 0 events
         Fval_max_seasonal = Fval_max_seasonal.where(quality_mask.rr == 0, np.nan)
-        #Fval_max_seasonal=Fval_max_seasonal.where(n_events> 0, np.nan)
+        #Fval_max_seasonal=Fval_max_seasonal.where(n_events_total> 0, np.nan)
 
 
         n_events_area_merged=n_events_area_merged.sum(dim='season')
@@ -168,12 +169,10 @@ for indicator in indicators:
         
         # save
         # save the merged season files
-        save_string=f"_{indicator}_{day_month}_{str(p_threshold).replace('.','')}_S{shift}_seasonal.nc"
-        if whole_period==True:
-            save_string=f"_{indicator}_{day_month}_{str(p_threshold).replace('.','')}_S{shift}_seasonal_WHOLE_PERIOD.nc"
+        save_string=f"_{indicator}_{day_month}_{str(p_threshold).replace('.','')}_S{shift}__{addition}_seasonal.nc"
         cont_metrics_merged.to_netcdf(path_verif+"/cont_metrics_merged%s" %(save_string))
         Fval_max_seasonal.to_netcdf(path_verif+"/Fval_merged%s" %(save_string))
-        Fval_area_max_seasonal.to_netcdf(path_verif+"/Fval_area_merged%s" %(save_string))
+        Fval_area_max_seasonal.to_netcdf(path_verif+"/Fval_area_merged%s" %(save_string)) # not used in the paper. Area figure is made for only summer
         print('seasonal files saved')
 
             # sum cont and cont_metrics_merged if season is not the first in the list of variable seasons

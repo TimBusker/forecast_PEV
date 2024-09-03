@@ -27,7 +27,6 @@ import cartopy.feature as cfeature
 import dask
 from dask.diagnostics import ProgressBar
 import xskillscore as xs
-
 import cfgrib
 import geopandas as gpd
 
@@ -53,7 +52,7 @@ resolution = "025"  # 0.125 or 0.25
 
 file_indicator = "ES"  # The files are named ES. This contains ES, sot and efi dims. Used to load obs_for files --> for 1 degree, select 'ES_1'
 save_annotation = (
-    "winter_WHOLE_PERIOD"  # this is an extra option to include a remark in the save file name.
+    "_FINAL"  # this is an extra option to include a remark in the save file name.
 )
 
 # make a dictionary with 'summer' string as key and the months (6,7,8) as values, 'aut' (9,10,11), 'winter' (12,1,2), 'spring' (3,4,5)
@@ -79,12 +78,12 @@ for season, months in seasons.items():
 print(selected_months)
 
 start_date = "2016-03-08"  # implementation of cycle CY41R2 from 32km to 16km res
-limit_t = False
+limit_t = True
 CL_config = "minor"  # 'minor' or 'major'
 EW_config = "minor"  # 'minor' or 'major'
 q_method = "seasonal"  # 'seasonal' or 'daily'
 method = "return_periods"  # 'quantile_extremes' or 'return_periods'
-
+filter_2021=True
 
 alternative_Fval = True  ## Chose between two different Fval Equations.
 lead_times = ["1 days", "2 days", "3 days", "4 days", "5 days"]
@@ -112,8 +111,8 @@ Select the precipitation threshold. The following options are supported in this 
 
 """
 
-p_thresholds = ["5RP"] # 10RP
-indicators = ["sot", "efi"]  # ES, efi or sot --> ES is combined efi+sot, if you need efi + sot seperately, the script needs to run twice.
+p_thresholds = ["5RP", "10RP"] # 
+indicators = ["efi", "sot", 'ES']  # ES, efi or sot --> ES is combined efi+sot, if you need efi + sot seperately, the script needs to run twice.
 
 
 for indicator in indicators:
@@ -289,7 +288,10 @@ for indicator in indicators:
     if selected_months != 'all': 
         precip=precip.where(precip['time.month'].isin(selected_months), drop=True) # select only the months that are in the selected_months list
 
-        print(precip.time)
+    if filter_2021==True:
+        days_2021_event=pd.date_range(start='2021-07-14', end='2021-7-16', freq='D').values
+        precip=precip.where(~precip.time.isin(days_2021_event), drop=True)
+      
     ########################################### Load quality mask  ############################################
     os.chdir(path_base)
 
@@ -325,7 +327,9 @@ for indicator in indicators:
             if selected_months != 'all':
                 obs_for = obs_for.where(obs_for["valid_time.month"].isin(selected_months), drop=True)
 
-                
+            if filter_2021==True:
+                days_2021_event=pd.date_range(start='2021-07-14', end='2021-7-16', freq='D').values
+                obs_for=obs_for.where(~obs_for.valid_time.isin(days_2021_event), drop=True)
             # obs_for=obs_for.where(quality_mask.rr==0, np.nan)
 
             # delete and drop time steps in obs_for that are fully nan in one of the variables (efi,sot,tp_obs). also if tp_obs got values, still, delete the valid_time step if one of the variables is nan over the whole lat/lon dimensions.
@@ -383,6 +387,18 @@ for indicator in indicators:
                 dim="valid_time"
             )  ## how many times do we have extreme precip?
             event_count = event_count.where(quality_mask.rr == 0, np.nan)
+
+            # print unique dates of events
+            
+            if lt=='1 days':
+                obs_event_area=obs_event.sel(longitude=lon_slice, latitude=lat_slice)
+                obs_event_area=obs_event_area.max(dim=['latitude', 'longitude'])
+                obs_event_area=obs_event_area.where(obs_event_area>0, drop=True)
+                obs_event_area_array=np.unique(obs_event_area.valid_time)
+                dates_df=pd.DataFrame(obs_event_area_array, columns=['dates with extreme precip'])
+                dates_df.to_excel(f'{path_verif}/dates_events_{p_threshold}.xlsx')
+                print(dates_df)
+
 
             #time_steps_total = time_steps_total.where(event_count > 0, np.nan)
             Climfreq = (
@@ -498,7 +514,7 @@ for indicator in indicators:
                 # set costs and losses
                 if CL_config == "major":
                     C_L_ratios = np.round(
-                        np.arange(0.1, 1.00, 0.01), 2
+                        np.arange(0.1, 1.1, 0.01), 2
                     )  # list of C/L ratios
                     C_L_ratios = np.insert(C_L_ratios, 0, 0.09)
                     C_L_ratios = np.insert(C_L_ratios, 0, 0.085)
@@ -533,7 +549,7 @@ for indicator in indicators:
                     C_L_ratios = np.insert(C_L_ratios, 0, 0.00001)
 
                 if CL_config == "minor":
-                    C_L_ratios = np.round(np.arange(0.1, 1.00, 0.1), 2)
+                    C_L_ratios = np.round(np.arange(0.1, 1.1, 0.1), 2)
                     C_L_ratios = np.insert(C_L_ratios, 0, 0.08)
                     C_L_ratios = np.insert(C_L_ratios, 0, 0.05)
                     C_L_ratios = np.insert(C_L_ratios, 0, 0.03)
@@ -648,7 +664,7 @@ for indicator in indicators:
                         longitude=lon_slice, latitude=lat_slice
                     )
                     ts_total_a = ts_total_a.where(event_count_a > 0, np.nan)
-                    Climfreq_a = Climfreq.sel(longitude=lon_slice, latitude=lat_slice)
+                    Climfreq_a = Climfreq.sel(longitude=lon_slice, latitude=lat_slice) # redundant, but checked and same as Climfreq_t. 
                     Climfreq_a = Climfreq_a.where(event_count_a > 0, np.nan)
 
                     # sum stats over area
@@ -660,7 +676,7 @@ for indicator in indicators:
                     )
                     ts_total_t = ts_total_a.sum(dim=["latitude", "longitude"])
                     Climfreq_t = (hits_t + misses_t) / ts_total_t
-                    print("climfreq=%s"%(Climfreq_t))
+
                     
 
                     FAR_a = false_alarms_t / (
@@ -741,7 +757,7 @@ for indicator in indicators:
                 )  ## skill specific days (all leads).
 
         # attach n_events as map as variable
-        n_events_a = n_events.sel(longitude=lon_slice, latitude=lat_slice)
+        n_events_a = n_events.sel(longitude=lon_slice, latitude=lat_slice) # from start of the script 
 
         Fval_area_merged = Fval_area_merged.assign(n_events=n_events_a)
         # attach n_events as attribute
@@ -752,7 +768,7 @@ for indicator in indicators:
         ########################################### only keep pixels with an event ############################################
         #Fval_merged = Fval_merged.where(event_count > 0, np.nan)
         #Fval_area_merged = Fval_area_merged.where(event_count_a > 0, np.nan)
-        #cont_metrics_merged = cont_metrics_merged.where(event_count > 0, np.nan) --> event count filer can only be done on Fval maps! Otherwise the cont metrics will be wrong.
+        cont_metrics_merged2 = cont_metrics_merged.where(event_count > 0, np.nan) # --> event count filer can only be done on Fval maps! Otherwise the cont metrics will be wrong.
 
         os.chdir(path_verif)
 

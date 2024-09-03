@@ -214,7 +214,7 @@ def get_data(file_name, lon_slice, lat_slice, valid_time):
 
 if flood_event=='WE':
     lon_lat_box_plot= [2.5, 12.5, 46.5, 54.5]   # [lon_min, lon_max, lat_min, lat_max]  --> 2021 floods [2.5, 14, 47.5, 55]  [-10, 20, 39, 55]
-    lon_lat_box_analysis= [5.5,8.4,49.3,51.7] # large analysis box, covering all impacts: [3.95,7.8,49.3,51.3]. Small analysis box, based on SOT indicator: [5.5,7.8,49.3,51.3]
+    lon_lat_box_analysis= [3.5, 7.8, 48, 52] # large analysis box, covering all impacts: [3.95,7.8,49.3,51.3]. Small analysis box, based on SOT indicator: [5.5,7.8,49.3,51.3] --> was 5.5,8.4,49.3,51.7 before revisions
 
     lon_slice_plot=slice(lon_lat_box_plot[0], lon_lat_box_plot[1]) # in case of area selection
     lat_slice_plot=slice(lon_lat_box_plot[3], lon_lat_box_plot[2]) # in case of area selection

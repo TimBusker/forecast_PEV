@@ -31,9 +31,12 @@ import pandas as pd
 
 
 # import all functions from function.py (in home dir)
-# sys.path.append("/scistor/ivm/tbr910/")
-# from functions import *
-# rename_files("/scistor/ivm/tbr910/precip_analysis/verif_files", f"S1winter",f"S1_winter")
+sys.path.append("/scistor/ivm/tbr910/")
+from functions import *
+seasons= ["winter", "summer", "aut", "spring"]
+
+for i in seasons: 
+    rename_files("/scistor/ivm/tbr910/precip_analysis/verif_files", f"S1{i}",f"S1_{i}")
 # %%
 ###############################################################################################################################
 ##################################################### Setup ###################################################################
@@ -56,8 +59,8 @@ path_return_periods = "/scistor/ivm/tbr910/precip_analysis/return_periods_europe
 
 
 
-day_month='02_09'
-addition= "_NO_2021"
+day_month='04_09'
+addition= "FINAL_major" # string of addition
 p_thresholds = ["5RP"] # 10RP
 lead_times = ["1 days", "2 days", "3 days", "4 days", "5 days"]
 shift = 1  # then 95/2. was 1?
@@ -87,7 +90,7 @@ Select the precipitation threshold. The following options are supported in this 
 """
 indicators=["efi", "sot"] # "efi", "sot", "ES"
 seasons=['summer', 'winter', 'aut', 'spring']
-seasons= [i+ addition for i in seasons]
+seasons= [i+ "_" +addition for i in seasons]
 
 
 
@@ -137,6 +140,7 @@ for indicator in indicators:
             n_events_area=n_events_area.expand_dims({'season': [season]})
             n_events_area_merged=xr.merge([n_events_area, n_events_area_merged])
 
+            print (f'{season} loaded and merged')
         print('all seasons loaded and merged')
 
         # n_events map 
@@ -169,7 +173,7 @@ for indicator in indicators:
         
         # save
         # save the merged season files
-        save_string=f"_{indicator}_{day_month}_{str(p_threshold).replace('.','')}_S{shift}__{addition}_seasonal.nc"
+        save_string=f"_{indicator}_{day_month}_{str(p_threshold).replace('.','')}_S{shift}_seasonal_{addition}.nc"
         cont_metrics_merged.to_netcdf(path_verif+"/cont_metrics_merged%s" %(save_string))
         Fval_max_seasonal.to_netcdf(path_verif+"/Fval_merged%s" %(save_string))
         Fval_area_max_seasonal.to_netcdf(path_verif+"/Fval_area_merged%s" %(save_string)) # not used in the paper. Area figure is made for only summer

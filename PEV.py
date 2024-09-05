@@ -52,7 +52,7 @@ resolution = "025"  # 0.125 or 0.25
 
 file_indicator = "ES"  # The files are named ES. This contains ES, sot and efi dims. Used to load obs_for files --> for 1 degree, select 'ES_1'
 save_annotation = (
-    "_FINAL"  # this is an extra option to include a remark in the save file name.
+    "_summer_test"  # _season_description this is an extra option to include a remark in the save file name.
 )
 
 # make a dictionary with 'summer' string as key and the months (6,7,8) as values, 'aut' (9,10,11), 'winter' (12,1,2), 'spring' (3,4,5)
@@ -83,11 +83,12 @@ CL_config = "minor"  # 'minor' or 'major'
 EW_config = "minor"  # 'minor' or 'major'
 q_method = "seasonal"  # 'seasonal' or 'daily'
 method = "return_periods"  # 'quantile_extremes' or 'return_periods'
-filter_2021=True
+filter_2021=False
 
 alternative_Fval = True  ## Chose between two different Fval Equations.
 lead_times = ["1 days", "2 days", "3 days", "4 days", "5 days"]
 shift = 1  # then 95/2. was 1?
+
 
 """
 lon lat boxes 
@@ -111,8 +112,8 @@ Select the precipitation threshold. The following options are supported in this 
 
 """
 
-p_thresholds = ["5RP", "10RP"] # 
-indicators = ["efi", "sot", 'ES']  # ES, efi or sot --> ES is combined efi+sot, if you need efi + sot seperately, the script needs to run twice.
+p_thresholds = ["10RP"] # 
+indicators = ["efi"]  # ES, efi or sot --> ES is combined efi+sot, if you need efi + sot seperately, the script needs to run twice.
 
 
 for indicator in indicators:
@@ -134,16 +135,16 @@ for indicator in indicators:
                 0.7,
                 0.8,
                 0.9,
-                0.91,
-                0.92,
-                0.93,
-                0.94,
+                # 0.91,
+                # 0.92,
+                # 0.93,
+                # 0.94,
                 0.95,
-                0.96,
-                0.97,
-                0.98,
+                # 0.96,
+                # 0.97,
+                # 0.98,
                 0.99,
-                1.0,
+                # 1.0,
             ]
         if EW_config == "major":
             ew_thresholds = [0.001, 0.003, 0.005, 0.007, 0.009] + list(
@@ -396,7 +397,7 @@ for indicator in indicators:
                 obs_event_area=obs_event_area.where(obs_event_area>0, drop=True)
                 obs_event_area_array=np.unique(obs_event_area.valid_time)
                 dates_df=pd.DataFrame(obs_event_area_array, columns=['dates with extreme precip'])
-                dates_df.to_excel(f'{path_verif}/dates_events_{p_threshold}.xlsx')
+                dates_df.to_excel(f'{path_verif}/dates_events_{p_threshold}_{save_annotation}.xlsx')
                 print(dates_df)
 
 
@@ -514,7 +515,7 @@ for indicator in indicators:
                 # set costs and losses
                 if CL_config == "major":
                     C_L_ratios = np.round(
-                        np.arange(0.1, 1.1, 0.01), 2
+                        np.arange(0.1, 1.01, 0.01), 2
                     )  # list of C/L ratios
                     C_L_ratios = np.insert(C_L_ratios, 0, 0.09)
                     C_L_ratios = np.insert(C_L_ratios, 0, 0.085)
@@ -536,8 +537,11 @@ for indicator in indicators:
                     C_L_ratios = np.insert(C_L_ratios, 0, 0.008)
                     C_L_ratios = np.insert(C_L_ratios, 0, 0.005)
                     C_L_ratios = np.insert(C_L_ratios, 0, 0.004)
+                    C_L_ratios = np.insert(C_L_ratios, 0, 0.0035)
                     C_L_ratios = np.insert(C_L_ratios, 0, 0.003)
+                    C_L_ratios = np.insert(C_L_ratios, 0, 0.0025)
                     C_L_ratios = np.insert(C_L_ratios, 0, 0.002)
+                    C_L_ratios = np.insert(C_L_ratios, 0, 0.0015)
                     C_L_ratios = np.insert(C_L_ratios, 0, 0.001)
                     C_L_ratios = np.insert(C_L_ratios, 0, 0.0008)
                     C_L_ratios = np.insert(C_L_ratios, 0, 0.0005)
@@ -768,7 +772,7 @@ for indicator in indicators:
         ########################################### only keep pixels with an event ############################################
         #Fval_merged = Fval_merged.where(event_count > 0, np.nan)
         #Fval_area_merged = Fval_area_merged.where(event_count_a > 0, np.nan)
-        cont_metrics_merged2 = cont_metrics_merged.where(event_count > 0, np.nan) # --> event count filer can only be done on Fval maps! Otherwise the cont metrics will be wrong.
+        cont_metrics_merged = cont_metrics_merged.where(event_count > 0, np.nan) # --> event count filer can only be done on Fval maps! Otherwise the cont metrics will be wrong.
 
         os.chdir(path_verif)
 

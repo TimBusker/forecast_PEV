@@ -245,7 +245,7 @@ efi_L3_event, sot_L3_event = get_data('obs_for_ES_025_L3_S1.nc', lon_slice_plot,
 efi_L4_event, sot_L4_event = get_data('obs_for_ES_025_L4_S1.nc', lon_slice_plot, lat_slice_plot, valid_time) # 4 day lead
 efi_L5_event, sot_L5_event = get_data('obs_for_ES_025_L5_S1.nc', lon_slice_plot, lat_slice_plot, valid_time) # 5 day lead
 
-# attach initiation times 
+# attach initialization times 
 efi_L1_event['init_time'] = '2021-07-14 00:00:00'
 efi_L2_event['init_time'] = '2021-07-13 00:00:00'
 efi_L3_event['init_time'] = '2021-07-12 00:00:00'
@@ -291,7 +291,7 @@ sot_L5_event['init_time'] = '2021-07-10 00:00:00'
 #     sot_L1_event=sot_L1_event_check.copy()
 #     sot_L2_event=sot_L2_event_check.copy()
 
-#     # attach initiation times
+#     # attach initialization times
 #     efi_L1_event['init_time'] = '2021-07-14 00:00:00'
 #     efi_L2_event['init_time'] = '2021-07-13 00:00:00'
 #     sot_L1_event['init_time'] = '2021-07-14 00:00:00'
@@ -358,11 +358,11 @@ plots = []
 for i in range(5):
     plot = efi_data[i].plot.pcolormesh(ax=axes[i], transform=ccrs.PlateCarree(central_longitude=0), add_colorbar=False, vmin=vmin_efi, vmax=vmax_efi, cmap=cmap_efi)
     plots.append(plot)
-    # title: initiation time: (X days lead)
+    # title: initialization time: (X days lead)
     if i==0:
-        axes[i].set_title(r"$\bf{"+ str(i+1) + '\ day\ lead' + "}$" + '\n' + 'Initiation : '+(str(efi_data[i].init_time.values)[:-8]) + ' 00 UTC')
+        axes[i].set_title(r"$\bf{"+ str(i+1) + '\ day\ lead' + "}$" + '\n' + 'initialization : '+(str(efi_data[i].init_time.values)[:-8]) + ' 00 UTC')
     else:
-        axes[i].set_title(r"$\bf{"+ str(i+1) + '\ days\ lead' + "}$" + '\n' + 'Initiation : '+(str(efi_data[i].init_time.values)[:-8]) + ' 00 UTC')
+        axes[i].set_title(r"$\bf{"+ str(i+1) + '\ days\ lead' + "}$" + '\n' + 'initialization : '+(str(efi_data[i].init_time.values)[:-8]) + ' 00 UTC')
 
     axes[i].coastlines()
     axes[i].add_feature(cfeature.BORDERS)
@@ -708,16 +708,19 @@ def gradient_fill(c,x, y, cmap, ax=None, downsampling=1):
 
 
 # Define the list of C_L values
-C_L_values = [0.01,0.08, 0.3] 
-season = 'summer'
-p_threshold = "10RP"
+C_L_values = [0.08,0.3] 
+season = 'summer_FINAL_major'
+colors_cl = ['black', 'green'] # 'gray']
+p_threshold = "5RP"
+loader="_FINAL_major"
+
 # Initialize an empty DataFrame to store the combined data
 combined_triggers = pd.DataFrame()
 
 # Loop over each C_L value
 for C_L in C_L_values:
     # Read the corresponding Excel file
-    triggers = pd.read_excel(f'{path_figures}/ew_thresholds_{C_L}_{p_threshold}.xlsx', index_col=0)
+    triggers = pd.read_excel(f'{path_figures}/ew_thresholds_{C_L}_{p_threshold}_{loader}.xlsx', index_col=0)
     
     # Filter the DataFrame for the specified season
     triggers = triggers.loc[triggers['season'] == season]
@@ -795,11 +798,11 @@ plots = []
 for i in range(5):
     plot = efi_data[i].plot.pcolormesh(ax=axes[i], transform=ccrs.PlateCarree(central_longitude=0), add_colorbar=False, vmin=vmin_efi, vmax=vmax_efi, cmap=cmap_efi)
     plots.append(plot)
-    # title: initiation time: (X days lead)
+    # title: initialization time: (X days lead)
     if i==0:
-        axes[i].set_title(r"$\bf{"+ str(i+1) + '\ day\ lead' + "}$" + '\n' + 'Initiation : '+(str(efi_data[i].init_time.values)[:-8]) + ' 00 UTC')
+        axes[i].set_title(r"$\bf{"+ str(i+1) + '\ day\ lead' + "}$" + '\n' + 'initialization : '+(str(efi_data[i].init_time.values)[:-8]) + ' 00 UTC')
     else:
-        axes[i].set_title(r"$\bf{"+ str(i+1) + '\ days\ lead' + "}$" + '\n' + 'Initiation : '+(str(efi_data[i].init_time.values)[:-8]) + ' 00 UTC')
+        axes[i].set_title(r"$\bf{"+ str(i+1) + '\ days\ lead' + "}$" + '\n' + 'initialization : '+(str(efi_data[i].init_time.values)[:-8]) + ' 00 UTC')
 
     axes[i].coastlines()
     axes[i].add_feature(cfeature.BORDERS)
@@ -807,8 +810,8 @@ for i in range(5):
 
     ################################ plot action triggers ################################
     lead_time_triggers = combined_triggers.loc[combined_triggers.lead == lead_times[i]]
-    # 3 colors: black, dark brown and gray
-    colors_cl = ['black', 'green', 'gray']
+
+
     # plot 3 triggers for three C_L values 
     for cl in C_L_values:
         
@@ -844,8 +847,8 @@ for i in range(5, 10):
 
     ################################ plot action triggers ################################
     lead_time_triggers = combined_triggers.loc[combined_triggers.lead == lead_times[i-5]]
-    # 3 colors: black, dark brown and gray
-    colors_cl = ['black', 'brown', 'gray']
+
+
     # plot 3 triggers for three C_L values 
     for cl in C_L_values:
         
@@ -901,7 +904,7 @@ if flood_event=='WE':
         #ax.scatter(7.118, 50.544, s=100, facecolors='none', edgecolors='yellow', marker='D', alpha=1, linewidths=1, transform=ccrs.PlateCarree(central_longitude=0))
         
         ############# plot ahr valley ################
-        ahr_catchment.plot(ax=ax, edgecolors='yellow', facecolor='none', alpha=1, linewidths=1.2, transform=ccrs.Mercator())
+        ahr_catchment.plot(ax=ax, edgecolors='yellow', facecolor='none', alpha=1, linewidths=1.2, transform=ccrs.Mercator(), zorder=100)
         
 
         ########################### ACTIVATE EM-DAT ################################

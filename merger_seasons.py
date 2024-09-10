@@ -59,8 +59,8 @@ path_return_periods = "/scistor/ivm/tbr910/precip_analysis/return_periods_europe
 
 
 
-day_month='04_09'
-addition= "FINAL_major" # string of addition
+day_month='06_09'
+addition= "FINAL5" # string of addition
 p_thresholds = ["5RP"] # 10RP
 lead_times = ["1 days", "2 days", "3 days", "4 days", "5 days"]
 shift = 1  # then 95/2. was 1?

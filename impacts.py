@@ -708,7 +708,7 @@ def gradient_fill(c,x, y, cmap, ax=None, downsampling=1):
 
 
 # Define the list of C_L values
-C_L_values = [0.08,0.3] 
+C_L_values = [0.08,0.18] 
 season = 'summer_FINAL_major'
 colors_cl = ['black', 'green'] # 'gray']
 p_threshold = "5RP"
@@ -825,8 +825,11 @@ for i in range(5):
 
         masked_data = efi_data[i].where(mask)
         #masked_data.plot.pcolormesh(ax=axes[i], transform=ccrs.PlateCarree(), cmap='Blues', alpha=1, vmin=vmin_efi, vmax=vmin_efi, add_colorbar=False)
-
-        contour = axes[i].contour(masked_data.longitude, masked_data.latitude, mask, levels=[0.5], colors=colors_cl[C_L_values.index(cl)], linewidths=2, transform=ccrs.PlateCarree())
+        if cl==0.18:
+            line_width=1
+        else:
+            line_width=1.5
+        contour = axes[i].contour(masked_data.longitude, masked_data.latitude, mask, levels=[0.5], colors=colors_cl[C_L_values.index(cl)], linewidths=line_width, transform=ccrs.PlateCarree())
 
 
 
@@ -862,8 +865,11 @@ for i in range(5, 10):
 
         masked_data = sot_data[i-5].where(mask)
         #masked_data.plot.pcolormesh(ax=axes[i], transform=ccrs.PlateCarree(), cmap='Blues', alpha=1, vmin=vmin_efi, vmax=vmin_efi, add_colorbar=False)
-
-        contour = axes[i].contour(masked_data.longitude, masked_data.latitude, mask, levels=[0.5], colors=colors_cl[C_L_values.index(cl)], linewidths=2, transform=ccrs.PlateCarree())
+        if cl==0.18:
+            line_width=1
+        else:
+            line_width=1.5
+        contour = axes[i].contour(masked_data.longitude, masked_data.latitude, mask, levels=[0.5], colors=colors_cl[C_L_values.index(cl)], linewidths=line_width, transform=ccrs.PlateCarree())
 
 
 

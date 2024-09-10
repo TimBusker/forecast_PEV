@@ -70,19 +70,19 @@ path_return_periods = "/scistor/ivm/tbr910/precip_analysis/return_periods_europe
 
 ##################################### Config  #####################################
 # General config
-indicator = "sot"  # efi, sot (or ES?)
+indicator = "efi"  # efi, sot (or ES?)
 shift = 1
 resolution = "025"
-day_month = "04_09"  # day and month seperated by an underscore
+day_month = "06_09"  # day and month seperated by an underscore
 
 # vars to load the area files 
 season = "_summer" # Empty for all seasons (extra desciption that was added to the input files in PEV.py (optional)). _season to select a specific season
-addition='_FINAL_major' # _description --> for Fval graphs seasonal thresholds are not yet supported (needs change in code)
+addition='_FINAL5' # _description --> for Fval graphs seasonal thresholds are not yet supported (needs change in code)
 loader=season+addition # loader for the area files
 
 # vars to load the Europe map --> for European map 
 season_EU="_seasonal" # Empty for all seasons (extra desciption that was added to the input files in PEV.py (optional)). _season to select a specific season
-addition_EU='_FINAL_major' # _description
+addition_EU='_FINAL5' # _description
 eu_map_loader=season_EU+addition_EU # loader for the EU files
 
 # plot config 
@@ -101,7 +101,7 @@ expected_CF= 1/(int(p_threshold.replace("RP",""))*365) # expected coverage facto
 
 # C_L
 find_C_L_max = False  # if True, we want to find the PEV for the C_L ratio for which Fval is max. If false, we want to find the PEV for a specific C_L ratio (specified in C_L_best_estimate)
-C_L_best_estimate = 0.3  # 0.08 used in paper.
+C_L_best_estimate = 0.08  # 0.08 used in paper.
 C_L_min = 0.02
 C_L_max = 0.18
 
@@ -130,6 +130,8 @@ Fval_merged_efi = Fval_merged_efi.where((Fval_merged_efi.C_L < 1), drop=True)
 Fval_merged_sot = Fval_merged_sot.where((Fval_merged_sot.C_L < 1), drop=True)
 Fval_region_sot = Fval_region_sot.where((Fval_region_sot.C_L < 1), drop=True)
 Fval_region_efi = Fval_region_efi.where((Fval_region_efi.C_L < 1), drop=True)
+
+
 
 ##################################### Retrieve lon lats for the ROI #####################################
 """
@@ -460,12 +462,12 @@ cbar.set_ticks(np.round(cbar.get_ticks(), 2))
 ########################################### save ################################################
 # set title to plot 
 plt.suptitle(
-    f"Potential economic value (PEV) for {indicator} {eu_map_loader} ",
+    f"Potential economic value (PEV) for {indicator} {eu_map_loader} {C_L_best_estimate} ",
     size=20,
 
 )
 fig.tight_layout()
-plt.savefig(path_figs + "PEV_MAP_%s.pdf" % (save_name_EU_map), bbox_inches="tight")
+plt.savefig(path_figs + "PEV_MAP_%s_%s.pdf" % (save_name_EU_map,C_L_best_estimate), bbox_inches="tight")
 plt.show()
 plt.close()
 
@@ -774,7 +776,7 @@ Fval_efi["ew_threshold_max"] = (
 )
 
 #################################### Step 2: retrieve the cont metrics for these ew thresholds (for C/L we want to calculate, either specific value or the one giving heighest PEV) ##################################
-lead_cont = "1 days"  # lead time for which we want to calculate the cont metrics
+lead_cont = "5 days"  # lead time for which we want to calculate the cont metrics
 
 
 ######### EFI  #########
@@ -969,10 +971,10 @@ for ax, Fval, title, n_hits, n_fa, n_misses, n_cn, hr, far, ew_threshold in zip(
     row_labels = ["Early Warning \n Early Action", "No Warning \n No Action"]
     col_labels = [" Extreme Rainfall \n Observed", " Extreme Rainfall \n Not Observed"]
     cell_text = [
-        [f"Hits \n(n={(round(n_hits,2))})", f"False Alarms \n(n={round(n_fa,2)})"],
+        [f"Hits \n(n={int(round(n_hits,2))})", f"False Alarms \n(n={int(round(n_fa,2))})"],
         [
-            f"Misses \n(n={(round(n_misses,2))})",
-            f"Correct Negatives \n(n={(round(n_cn,2))})",
+            f"Misses \n(n={int(round(n_misses,2))})",
+            f"Correct Negatives \n(n={int(round(n_cn,2))})",
         ],
     ]
 
@@ -1049,7 +1051,7 @@ fig.legend(
     bbox_to_anchor=(1.21, -0.1),
 )
 
-plt.savefig(path_figs + "PEV_GRAPH_%s.pdf" % (save_name), bbox_inches="tight")
+plt.savefig(path_figs + "PEV_GRAPH_%s_%s.pdf" % (save_name,C_L_best_estimate), bbox_inches="tight")
 
 plt.show()
 plt.close()
@@ -1317,8 +1319,8 @@ gl.ylabel_style = {"color": "gray", "fontsize": 16}
 ############################################################## N-event map ########################################################
 
 # Define a categorical colormap with 10 unique colors
-cmap = plt.get_cmap('PRGn', 7)
-bounds = list(range(1,9))  # [0, 1, 2, ..., 10]
+cmap = plt.get_cmap('Greens', 8)
+bounds = list(range(0,9))  # [0, 1, 2, ..., 10]
 norm = mcolors.BoundaryNorm(bounds, cmap.N)
 
 # Filter out the pixels with 0 events
@@ -1506,9 +1508,16 @@ os.chdir(path_verif)
 Fval_ES = xr.open_dataset(
     path_verif + "/Fval_area_merged_ES_%s" % (file_accessor)
 ).Fval
-Fval_ES = Fval_ES.mean(
-    dim=("latitude", "longitude")
-)  # new, because before the PEV script already calculated the spatial average
+# Fval_ES = Fval_ES.mean(
+#     dim=("latitude", "longitude")
+# )  # new, because before the PEV script already calculated the spatial average
+
+Fval_ES = Fval_ES.where((Fval_ES.C_L < 1), drop=True)
+Fval_ES = Fval_ES.where((Fval_ES.C_L < 1), drop=True)
+
+x_lim=0.6
+y_lim=1
+
 print(Fval_ES)
 
 # find max ew threshold for each C/L for ES indicator (not done above)
@@ -1521,11 +1530,10 @@ Fval_ES["ew_threshold_max"] = ew_threshold_max
 
 ############ EFI #############
 
-
 # plot Fval max for each lead time
 fig = plt.figure(figsize=(15, 15))  # (W,H)
 
-lead = 3
+lead = 1
 Fm_efi_lead = Fval_efi.isel(lead=lead).Fval
 plt.plot(
     Fm_efi_lead.C_L.values, Fm_efi_lead.values, label="EFI", linewidth=3, color="red"
@@ -1543,7 +1551,7 @@ plt.xticks(np.arange(0, 0.7, 0.2), size=15)
 plt.yticks(np.arange(0.2, 0.7, 0.2), size=15)
 plt.title("lead=%s days" % (lead+1), size=20)
 plt.legend(fontsize=15, loc="lower right", bbox_to_anchor=(1.1, 0))
-plt.savefig(path_figs + "ES_comparison_graph_%s.pdf" % (save_name), bbox_inches="tight")
+plt.savefig(path_figs + "ES_comparison_graph_%s_%s.pdf" % (save_name,C_L_best_estimate), bbox_inches="tight")
 plt.show()
 
 

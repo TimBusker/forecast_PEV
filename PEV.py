@@ -52,7 +52,7 @@ resolution = "025"  # 0.125 or 0.25
 
 file_indicator = "ES"  # The files are named ES. This contains ES, sot and efi dims. Used to load obs_for files --> for 1 degree, select 'ES_1'
 save_annotation = (
-    "_summer_test"  # _season_description this is an extra option to include a remark in the save file name.
+    "aut_FINAL5"  # _season_description this is an extra option to include a remark in the save file name.
 )
 
 # make a dictionary with 'summer' string as key and the months (6,7,8) as values, 'aut' (9,10,11), 'winter' (12,1,2), 'spring' (3,4,5)
@@ -112,8 +112,8 @@ Select the precipitation threshold. The following options are supported in this 
 
 """
 
-p_thresholds = ["10RP"] # 
-indicators = ["efi"]  # ES, efi or sot --> ES is combined efi+sot, if you need efi + sot seperately, the script needs to run twice.
+p_thresholds = ["5RP","10RP"] # 
+indicators = ["efi", "sot", "ES"]  # ES, efi or sot --> ES is combined efi+sot, if you need efi + sot seperately, the script needs to run twice.
 
 
 for indicator in indicators:

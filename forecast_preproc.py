@@ -2,8 +2,7 @@
 """
 Created on Fri Jan  7 11:33:21 2022
 
-@author: tbr910
-
+@author: Tim Busker 
 
 This script: 
 
@@ -11,9 +10,9 @@ This script:
 2) Creates obs_for files for each lead time (1-5 days)
 3) Saves them as obs_for files for a specific resolution, lead time and shift value: e.g. obs_for_ES_1_L5_S1.nc for 1 degree res, lead time 5 days and shift value 1 day.
 
-Note: mind the shift in values: 
+Note: mind the 1-day timeshift between ECMWF and E-OBS: 
 
-ECMWF EFI and SOT datestamps mean rainfall over that day. In ECMWF words:"Accumulations are over the hour (the processing period) ending at the validity date/time".
+ECMWF EFI and SOT datestamps represent rainfall over that day. In ECMWF words:"Accumulations are over the hour (the processing period) ending at the validity date/time".
 E-OBS datestamps mean rainfall over the next day.
 
 Take rainfall fallen on 2017-04-04: 
@@ -22,17 +21,14 @@ Take rainfall fallen on 2017-04-04:
 
 So, to compare the two, we need to shift the E-OBS data by 1 day.
 
-Only Danmark doesnt need a shift. E-OBS datestamps indicate the rainfall fallen on that day. 
-
+Only Denmark doesnt need a shift. E-OBS datestamps indicate the rainfall fallen on that day. 
 
 """
-
 import os
 import xarray as xr
 from pylab import *
 #import cfgrib
 #import metview as mv
-
 # Library
 import os
 #import iris
@@ -65,7 +61,7 @@ dask.config.set({"array.slicing.split_large_chunks": True})
 
 
 ########################################## set ini vars #############################################
-shift_value=-2 # original analysis was done with 1
+shift_value=1 
 resolution='025' # 0125 or 025 or 1
 
 ############################################ EFI #############################################
@@ -108,17 +104,12 @@ quality_mask.plot()
 quality_mask=quality_mask.sel(longitude=slice(-11,quality_mask.longitude.max().values))
 quality_mask.to_netcdf(path_base+'/quality_mask_%s.nc'%(resolution))
 
-
-
-
 ############################################ Mask #############################################
 os.chdir(path_base)
 # create mask where all values that are always nan are set to 0, else 1
 ls_mask=precip.isnull().all(dim='time')
 ls_mask=ls_mask.sel(longitude=slice(-11,ls_mask.longitude.max().values)) # INTEGRATE IN FORECAST_PREPROC.PY
 ls_mask.to_netcdf(path_base+'/land_sea_mask_%s.nc'%(resolution))
-
-
 
 ############################ country mask ##########################################
 countries=gpd.read_file(path_base+'/support_files/eur_countries/world-administrative-boundaries.shp')
@@ -129,8 +120,6 @@ c_mask= regionmask.mask_geopandas(countries, precip.longitude.values, precip.lat
 
 # find index position of United Kingdom 
 c_mask=c_mask.rename({'lon': 'longitude','lat': 'latitude'})
-
-
 
 ########################################### Start Loop ###########################################
 lead_times= ['1 days', '2 days', '3 days', '4 days', '5 days']
@@ -168,8 +157,7 @@ for lt in lead_times:
 
     # take starting date of SOT
     precip_s=precip_s.sel(valid_time=slice(sot_lt.valid_time.min().values, sot_lt.valid_time.max().values)) # select same valid times as efi_lt
-    
-    
+        
     # interpolate efi_lt to precip 
     #efi_lt=efi_lt.interp_like(precip_s, method='linear')
     
@@ -182,7 +170,6 @@ for lt in lead_times:
     efi_lt_masked= efi_lt_masked.where(quality_mask==0, np.nan)
     sot_lt_masked= sot_lt_masked.where(quality_mask==0, np.nan)
     precip_s= precip_s.where(quality_mask==0, np.nan)
-
 
     # change dtype to float32 
     #efi_lt_masked=efi_lt_masked.astype('float32') # does this change the res? 

@@ -2,7 +2,9 @@
 """
 Created on Fri Jan  7 11:33:21 2022
 
-@author: tbr910
+@author: Tim Busker 
+
+This script contains some functions that are used in the scripts.
 """
 
 import os

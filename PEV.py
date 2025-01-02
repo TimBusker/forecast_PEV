@@ -1,9 +1,11 @@
 """
 Created on Mon Aug 31 17:04:50 2020
 
-@author: tbr910
+@author: Tim Busker
 
+This scripts calculates the PEV for both the European files as the regional files for the selected ROI. The PEV is calculated over all the C/L ratios and early-warning thresholds. Two different PEV equations are supported. 
 
+if "summer", "aut", "winter" or "spring" are present in the save_annotation, the script will only calculate the PEV for these seasons. If all seasons are run, the merger_seasons.py script will be used to calculate the average PEV over the whole year.
 """
 
 import os
@@ -48,14 +50,14 @@ path_return_periods = "/scistor/ivm/tbr910/precip_analysis/return_periods_europe
 # set dask to split large chunks
 dask.config.set({"array.slicing.split_large_chunks": True})
 
-resolution = "025"  # 0.125 or 0.25
 
+############################################ Config variables #############################################
+resolution = "025"  # 0.125 or 0.25
 file_indicator = "ES"  # The files are named ES. This contains ES, sot and efi dims. Used to load obs_for files --> for 1 degree, select 'ES_1'
 save_annotation = (
-    "aut_FINAL5"  # _season_description this is an extra option to include a remark in the save file name.
+    "aut_FINAL_major"  # _season_description: this selects the season, and is also the string used to save the file. 
 )
 
-# make a dictionary with 'summer' string as key and the months (6,7,8) as values, 'aut' (9,10,11), 'winter' (12,1,2), 'spring' (3,4,5)
 seasons = {
     "summer": [6, 7, 8],
     "aut": [9, 10, 11],
@@ -79,24 +81,23 @@ print(selected_months)
 
 start_date = "2016-03-08"  # implementation of cycle CY41R2 from 32km to 16km res
 limit_t = True
-CL_config = "minor"  # 'minor' or 'major'
-EW_config = "minor"  # 'minor' or 'major'
+CL_config = "major"  # 'minor' or 'major'
+EW_config = "major"  # 'minor' or 'major'
 q_method = "seasonal"  # 'seasonal' or 'daily'
 method = "return_periods"  # 'quantile_extremes' or 'return_periods'
 filter_2021=False
-
 alternative_Fval = True  ## Chose between two different Fval Equations.
 lead_times = ["1 days", "2 days", "3 days", "4 days", "5 days"]
 shift = 1  # then 95/2. was 1?
 
 
 """
-lon lat boxes 
-"[2.5, 14, 47.5, 55] --> large area Western Europe (used till now)
-[3.95,7.8,49.3,51.3] --> Affected by 2021 floods
+The different options for lat/lon boxes (ROI) are:
+"[2.5, 14, 47.5, 55] --> large area Western Europe 
+[3.95,7.8,49.3,51.3] --> Affected by 2021 floods (small) --> this one was used in first submission
+[3.5,7.8,48,52] --> Affected by 2021 floods (large) --> this one is used in revisions for paper 
 [-10, 20, 39, 55] --> much larger (rondom?) area
 [1,7.8,48,52] --> area based on many events
-[3.5,7.8,48,52] --> area based on many events (excluding coastal area of france)
 """
 
 lon_lat_box = [3.5, 7.8, 48, 52]  # [lon_min, lon_max, lat_min, lat_max]
@@ -112,10 +113,10 @@ Select the precipitation threshold. The following options are supported in this 
 
 """
 
-p_thresholds = ["5RP","10RP"] # 
-indicators = ["efi", "sot", "ES"]  # ES, efi or sot --> ES is combined efi+sot, if you need efi + sot seperately, the script needs to run twice.
+p_thresholds = ["5RP","10RP"] # 10yr return period is also ran (not used in paper)
+indicators = ["efi", "sot", "ES"]  # ES, efi or sot --> ES is combined efi+sot (not used in paper), if you need efi + sot seperately, the script needs to run twice.
 
-
+############################################ Start run #############################################
 for indicator in indicators:
     print(
         f"start run for {indicator}, {selected_months} months and warning thresholds {p_thresholds} with temporal shift {shift}, {save_annotation}"
@@ -301,7 +302,7 @@ for indicator in indicators:
     )  # includes land-sea and X% nan criteria
 
 
-    ############################################################# START LOOP  ############################################################
+    ############################################################# START precipitation threshold loop  ############################################################
 
     for p_threshold in p_thresholds:
         os.chdir(path_obs_for_new)
@@ -405,7 +406,8 @@ for indicator in indicators:
             Climfreq = (
                 event_count / time_steps_total
             )  # Ratio of drought time steps compared to all time steps in rainfall dataset
-
+            print (Climfreq)
+            
             #print("average climfreq is %s" % (Climfreq.mean().values.round(5)))
             # calculate contingency metrics using xs (xskillscore)
             p_counter = 0

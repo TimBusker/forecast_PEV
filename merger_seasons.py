@@ -1,3 +1,12 @@
+"""
+Created on Mon Aug 31 17:04:50 2020
+
+@author: Tim Busker
+
+This script merges the seasonal PEV files as made in PEV.py. It results in an average PEV estimate over the whole year.  
+
+"""
+
 %reset
 # %%
 import sys
@@ -43,7 +52,6 @@ for i in seasons:
 ###############################################################################################################################
 
 ##################################### Config  #####################################
-
 home = "/scistor/ivm/tbr910/"  # \\scistor.vu.nl\shares\BETA-IVM-BAZIS\tbr910\ # /scistor/ivm/tbr910/
 path_base = home + "precip_analysis"
 path_obs = home + "precip_analysis/obs"
@@ -57,20 +65,19 @@ path_obs_for_new = home + "precip_analysis/obs_for_new_LT"
 path_figs = home + "precip_analysis/figures/revisions/"
 path_return_periods = "/scistor/ivm/tbr910/precip_analysis/return_periods_europe"
 
-
-
-day_month='06_09'
-addition= "FINAL5" # string of addition
+day_month='04_09'
+addition= "FINAL_major" # string of addition
 p_thresholds = ["5RP"] # 10RP
 lead_times = ["1 days", "2 days", "3 days", "4 days", "5 days"]
 shift = 1  # then 95/2. was 1?
+
 """
-lon lat boxes 
-"[2.5, 14, 47.5, 55] --> large area Western Europe (used till now)
-[3.95,7.8,49.3,51.3] --> Affected by 2021 floods
+The different options for lat/lon boxes (ROI) are:
+"[2.5, 14, 47.5, 55] --> large area Western Europe 
+[3.95,7.8,49.3,51.3] --> Affected by 2021 floods (small) --> this one was used in first submission
+[3.5,7.8,48,52] --> Affected by 2021 floods (large) --> this one is used in revisions for paper 
 [-10, 20, 39, 55] --> much larger (rondom?) area
 [1,7.8,48,52] --> area based on many events
-[3.5,7.8,48,52] --> area based on many events (excluding coastal area of france)
 """
 
 lon_lat_box = [3.5, 7.8, 48, 52]  # [lon_min, lon_max, lat_min, lat_max] 
@@ -86,13 +93,10 @@ Select the precipitation threshold. The following options are supported in this 
 - Fixed rainfall amounts (mm): 40, 60, 90 (method var: threshold_method, not implemented yet?)
 - Fixed return periods: 5RP, 10RP, 20RP (method var: return_periods)
 
-
 """
 indicators=["efi", "sot"] # "efi", "sot", "ES"
 seasons=['summer', 'winter', 'aut', 'spring']
 seasons= [i+ "_" +addition for i in seasons]
-
-
 
 os.chdir(path_base)
 
@@ -105,7 +109,7 @@ for indicator in indicators:
     # loop over seasons and load+merge cont metrics 
     for p_threshold in p_thresholds:
         
-        ################################################ Merge cont metrics of different seasons ################################################
+        ################################################ Merge contigency metrics and PEV (Fval) of different seasons ################################################
         cont_metrics_merged=xr.Dataset()
         Fval_max_merged=xr.Dataset()
         Fval_area_merged=xr.Dataset()
@@ -142,15 +146,12 @@ for indicator in indicators:
 
             print (f'{season} loaded and merged')
         print('all seasons loaded and merged')
-
-        # n_events map 
+        
+        # calculate sum of n_events
+        n_events_area_merged=n_events_area_merged.sum(dim='season')
 
         # calculate sum of cont metrics
         cont_metrics_merged=cont_metrics_merged.sum(dim='season') # sum of hits, misses, false alarms, correct negatives and n_events
-        #cont_metrics_merged=cont_metrics_merged.where(cont_metrics_merged.n_events > 0, np.nan)
-        
-        # n_events map
-        #n_events_total=cont_metrics_merged.isel(ew_threshold=0).n_events.drop_vars('ew_threshold')
         
         # calculate the mean of the Fval_max and Fval_area_max
         Fval_max_seasonal=Fval_max_merged.mean(dim='season') # skipna is true by default (its a float)
@@ -158,20 +159,7 @@ for indicator in indicators:
         
         # filter areas with less 0 events
         Fval_max_seasonal = Fval_max_seasonal.where(quality_mask.rr == 0, np.nan)
-        #Fval_max_seasonal=Fval_max_seasonal.where(n_events_total> 0, np.nan)
 
-
-        n_events_area_merged=n_events_area_merged.sum(dim='season')
-        #Fval_area_max_seasonal=Fval_area_max_seasonal.where(n_events_area_merged.n_events > 0, np.nan)
-        
-        # quality mask 
-        #cont_metrics_merged=cont_metrics_merged.where(cont_metrics_merged.n_events > 0, np.nan)
-        
-        #save_name= f"{indicator}_{file_accessor}"  # save name for the figures
-        
-        #
-        
-        # save
         # save the merged season files
         save_string=f"_{indicator}_{day_month}_{str(p_threshold).replace('.','')}_S{shift}_seasonal_{addition}.nc"
         cont_metrics_merged.to_netcdf(path_verif+"/cont_metrics_merged%s" %(save_string))
@@ -179,17 +167,6 @@ for indicator in indicators:
         Fval_area_max_seasonal.to_netcdf(path_verif+"/Fval_area_merged%s" %(save_string)) # not used in the paper. Area figure is made for only summer
         print('seasonal files saved')
 
-            # sum cont and cont_metrics_merged if season is not the first in the list of variable seasons
-            #if season == seasons[0]: # if first season, just load the cont metrics
-            #    cont_metrics_merged = cont.copy()
-            #    Fval_merged = Fval.copy()
-            #    Fval_area_merged = Fval_area.copy()
-            #    print('first season, %s , loaded'%(season))
-            #else: # if not the first season, sum cont and cont_metrics_merged 
-            #    cont_metrics_merged = cont_metrics_merged.fillna(0) + cont.fillna(0)
-            #    Fval_merged=Fval_merged
-            #    print('season %s added'%(season))
-        
         
         
     

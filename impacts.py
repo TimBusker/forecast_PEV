@@ -1,6 +1,15 @@
 
-#%% packages and paths 
+"""
+Created on Mon Aug 31 17:04:50 2020
 
+@author: Tim Busker
+
+This script geo-locates flood impact data from the EM-DAT dataset, and plots EFI and SOT forecasts + triggers, together with the flood impacts (Fig. 4 of script). 
+
+"""
+
+
+#%% packages and paths 
 import geopandas as gpd
 import pandas as pd
 import numpy as np
@@ -46,9 +55,8 @@ path_support=home+'/precip_analysis/support_files'
 
 #%% 
 ############################################ Flood event #############################################
-flood_event= 'WE' # 'WE', 'IT, 'SL', 'HALLEIN'
+flood_event= 'WE' # 'WE', 'IT, 'SL', 'HALLEIN' # different flood events were assessed. 
 plot_europe=False
-
 
 #%% Load Ahr catchment 
 german_catchments= gpd.read_file(path_impact+'//Flussgebietsgrenzen_und_Flusseinzugsgebiete_2963387439123051134/Flusseinzugsgebiet_DE.shp')
@@ -97,10 +105,6 @@ if flood_event=='WE':
 
 
         ################################################ Select flood event ########################################################
-        # SL: 3rd August at around 20.00h and night of 3-4 august
-
-
-
         # select the top 100 largest flood events based on no. affected
         recent_dis= emdat[(emdat['Start Date']>= '2016-01-01') & (emdat['Start Date']<= '2023-12-31')]
         largest_no_aff=recent_dis.sort_values(by=['No. Affected'], ascending=False).head(50)
@@ -114,7 +118,7 @@ if flood_event=='WE':
             # rename 'Berchtesgaden (Bavaria); Heilbronn (Baden-Württemberg); Saxony' to comma seperated locations
             emdat_flood['Location']=emdat_flood['Location'].str.replace('Berchtesgaden (Bavaria); Heilbronn (Baden-Württemberg); Saxony', 
                                                                         'Berchtesgaden (Bavaria), Heilbronn (Baden-Württemberg), Saxony')
-            
+
             emdat_flood['Location']=emdat_flood['Location'].str.replace('Saxony-Anhalt; Ahrweiler',
                                                                         'Saxony-Anhalt, Ahrweiler')
             emdat_flood['Location']=emdat_flood['Location'].str.replace('Köln (Rheinland-Pfalz); Märkischer Kreis',
@@ -132,18 +136,16 @@ if flood_event=='WE':
                                                                         'Limbourg Belgium')
             emdat_flood['Location']=emdat_flood['Location'].str.replace(' Luxembourg', 
                                                                         'Luxembourg Belgium')
-                                                                        
-            
             emdat_flood['Location']=emdat_flood['Location'].str.replace('Schwyz and Uri Cantons', 'Schwyz')
 
 
-        elif flood_event=='SL':
-            # select all events from 2023-08-01 to present 
-            emdat_flood=emdat[(emdat['Start Date']>= '2023-08-01') & (emdat['Start Date']<= '2024-08-15')]
-            emdat_flood= emdat.loc[emdat['Country'].str.contains('Slovenia')]
-            emdat_flood=emdat[(emdat['Start Date']>= '2023-08-02') & (emdat['Start Date']<= '2023-08-15')]
+        # elif flood_event=='SL':
+        #     # select all events from 2023-08-01 to present 
+        #     emdat_flood=emdat[(emdat['Start Date']>= '2023-08-01') & (emdat['Start Date']<= '2024-08-15')]
+        #     emdat_flood= emdat.loc[emdat['Country'].str.contains('Slovenia')]
+        #     emdat_flood=emdat[(emdat['Start Date']>= '2023-08-02') & (emdat['Start Date']<= '2023-08-15')]
 
-            emdat_flood=emdat[(emdat['Start Date']>= '2021-07-13') & (emdat['Start Date']<= '2021-07-15')]
+        #     emdat_flood=emdat[(emdat['Start Date']>= '2021-07-13') & (emdat['Start Date']<= '2021-07-15')]
 
         # put all the Locations in the location column in a new row (duplicate). The locations are seperated by a comma
         emdat_flood['Location']=emdat_flood['Location'].str.split(',')
@@ -155,10 +157,6 @@ if flood_event=='WE':
             emdat_flood=emdat_flood.loc[~emdat_flood['Location'].str.contains('|'.join(delete_locs))]
             # rename 'Schwyz and Uri Cantons' to Schwyz
             
-
-            
-
-
         # get lat lon of the 'Location' column, add to emdat_2021. geolocator is the geopy Nominatim geocoder
         emdat_flood['Location']=emdat_flood['Location'].astype(str)       
         emdat_flood['lat']=np.nan
@@ -180,20 +178,17 @@ if flood_event=='WE':
                     lon=location.longitude
                     emdat_flood.loc[i,'lat']=lat
                     emdat_flood.loc[i,'lon']=lon
-            
 
             else:
                 print ('none')
                 print (row['Location'])
 
-        
-
         # save emdat_flood 
         os.chdir(path_impact)
         emdat_flood.to_csv('emdat_flood.csv')
 
-#2. IT floods 2023
-IT_floods= gpd.read_file(path_impact+'/IT_flood_damage.shp')
+#2. IT floods 2023 --> not used 
+# IT_floods= gpd.read_file(path_impact+'/IT_flood_damage.shp')
 
 #%% 
 ################################################################################################################
@@ -208,31 +203,24 @@ def get_data(file_name, lon_slice, lat_slice, valid_time):
         data = data.sel(longitude=lon_slice, latitude=lat_slice)
     efi = data.efi.sel(valid_time=valid_time)
     sot = data.sot.sel(valid_time=valid_time)
-
-
     return efi, sot
 
 if flood_event=='WE':
     lon_lat_box_plot= [2.5, 12.5, 46.5, 54.5]   # [lon_min, lon_max, lat_min, lat_max]  --> 2021 floods [2.5, 14, 47.5, 55]  [-10, 20, 39, 55]
     lon_lat_box_analysis= [3.5, 7.8, 48, 52] # large analysis box, covering all impacts: [3.95,7.8,49.3,51.3]. Small analysis box, based on SOT indicator: [5.5,7.8,49.3,51.3] --> was 5.5,8.4,49.3,51.7 before revisions
-
     lon_slice_plot=slice(lon_lat_box_plot[0], lon_lat_box_plot[1]) # in case of area selection
     lat_slice_plot=slice(lon_lat_box_plot[3], lon_lat_box_plot[2]) # in case of area selection
-
-    
-
-
     valid_time = '2021-07-15' # 15 july    --> # 2018-06-02 also very high efi/sot values. 2021-07-15
 
-if flood_event=='IT':
-    lon_slice_plot = slice(8.5, 13.5)
-    lat_slice_plot = slice(46.5, 42.5)
-    valid_time = '2023-05-17' # 16 may 
+# if flood_event=='IT':
+#     lon_slice_plot = slice(8.5, 13.5)
+#     lat_slice_plot = slice(46.5, 42.5)
+#     valid_time = '2023-05-17' # 16 may 
 
-if flood_event=='HALLEIN':
-    lon_slice_plot = slice(12, 14)
-    lat_slice_plot = slice(49, 46)
-    valid_time = '2021-07-17' # 17 july
+# if flood_event=='HALLEIN':
+#     lon_slice_plot = slice(12, 14)
+#     lat_slice_plot = slice(49, 46)
+#     valid_time = '2021-07-17' # 17 july
 
 
 
@@ -324,13 +312,13 @@ if flood_event=='WE':
     vmin_sot=0
     vmax_sot=8
 
-if flood_event=='IT':
-    vmin_sot=0
-    vmax_sot=4
+# if flood_event=='IT':
+#     vmin_sot=0
+#     vmax_sot=4
 
-if flood_event=='HALLEIN':
-    vmin_sot=0
-    vmax_sot=4
+# if flood_event=='HALLEIN':
+#     vmin_sot=0
+#     vmax_sot=4
 
 fig=plt.figure(figsize=(20,7))# (W,H)
 proj0=ccrs.PlateCarree(central_longitude=0)
@@ -414,18 +402,17 @@ if flood_event=='WE':
             #location of Bad neuenahr ahrweiler 
             #ax.scatter(7.1, 50.5, s=100, c='Green', marker='D', alpha=a_ahr, transform=ccrs.PlateCarree(central_longitude=0))
 
-if flood_event=='IT':
-    ########################### ACTIVATE COPERNICUS EMERGENCY MANAGEMENT SERVICE ################################
-    for ax in axes:
-        if plot_europe==False:
-            IT_floods.plot(ax=ax, color='yellow', alpha=a_e_IT, transform=ccrs.PlateCarree(central_longitude=0), marker="x", markersize=100)
-        #ax.scatter(7.1, 50.5, s=50, c='Green', marker='D', alpha=a_ahr, transform=ccrs.PlateCarree(central_longitude=0))
+# if flood_event=='IT':
+#     ########################### ACTIVATE COPERNICUS EMERGENCY MANAGEMENT SERVICE ################################
+#     for ax in axes:
+#         if plot_europe==False:
+#             IT_floods.plot(ax=ax, color='yellow', alpha=a_e_IT, transform=ccrs.PlateCarree(central_longitude=0), marker="x", markersize=100)
+#         #ax.scatter(7.1, 50.5, s=50, c='Green', marker='D', alpha=a_ahr, transform=ccrs.PlateCarree(central_longitude=0))
 
-if flood_event=='HALLEIN':
-    for ax in axes:
-        if plot_europe==False:
-            ax.scatter(13.1, 47.7, s=100, c='Green', marker='D', alpha=1, transform=ccrs.PlateCarree(central_longitude=0))
-
+# if flood_event=='HALLEIN':
+#     for ax in axes:
+#         if plot_europe==False:
+#             ax.scatter(13.1, 47.7, s=100, c='Green', marker='D', alpha=1, transform=ccrs.PlateCarree(central_longitude=0))
 
 
 # Add gridlines and labels to the plots
@@ -456,18 +443,14 @@ plt.show()
 lead_time_cdf='1'
 sample='pixel' # 'box' or 'pixel'
 
-
-
 lon_slice_analysis=slice(lon_lat_box_analysis[0], lon_lat_box_analysis[1]) # in case of area selection
 lat_slice_analysis=slice(lon_lat_box_analysis[3], lon_lat_box_analysis[2]) # in case of area selection
 
 
 ############################ calculate CDF ############################
-
 # load forecasts for lead time X
 efi_L1=xr.open_dataset(path_obs_for_new+'/obs_for_ES_025_L%s_S1.nc'%(lead_time_cdf)).efi
 sot_L1=xr.open_dataset(path_obs_for_new+'/obs_for_ES_025_L%s_S1.nc'%(lead_time_cdf)).sot
-
 
 ############################ country mask ##########################################
 countries=gpd.read_file(path_base+'/support_files/eur_countries/world-administrative-boundaries.shp')
@@ -494,8 +477,6 @@ else:
     #sot_L1=sot_L1.where((c_mask==(country_names.index('Belgium')))|(c_mask==(country_names.index('Germany')))|(c_mask==(country_names.index('Netherlands')))|(c_mask==(country_names.index('Luxembourg'))), np.nan)
     efi_L1_roi= efi_L1.sel(longitude=lon_slice_plot, latitude=lat_slice_plot)
     sot_L1_roi= sot_L1.sel(longitude=lon_slice_plot, latitude=lat_slice_plot)
-
-
 
 # flatten
 efi_L1_roi_np=efi_L1_roi.values.flatten()
@@ -605,7 +586,7 @@ def gradient_fill(c,x, y, cmap, ax=None, downsampling=1):
 
 
 
-# # plot cdf's in 1x2 subplot
+# # plot cdf's in 1x2 subplot --> this is used but deactivated for now, because it is slow. 
 # fig, ax = plt.subplots(2,1, figsize=(3,2)) 
 # # width space between subplots
 # fig.subplots_adjust(hspace=0.8, wspace=0.3)
@@ -706,10 +687,9 @@ def gradient_fill(c,x, y, cmap, ax=None, downsampling=1):
 
 ##################################################### Process ACTION TRIGGERS #######################################################
 
-
 # Define the list of C_L values
 C_L_values = [0.08,0.18] 
-season = 'summer_FINAL_major'
+season = 'summer_FINAL_major' # summer seasons action triggers 
 colors_cl = ['black', 'green'] # 'gray']
 p_threshold = "5RP"
 loader="_FINAL_major"
@@ -811,18 +791,14 @@ for i in range(5):
     ################################ plot action triggers ################################
     lead_time_triggers = combined_triggers.loc[combined_triggers.lead == lead_times[i]]
 
-
     # plot 3 triggers for three C_L values 
     for cl in C_L_values:
         
         ############# plot action triggers ################
         trigger_value=float(lead_time_triggers.loc[lead_time_triggers.C_L == cl].ew_threshold_efi.values[0])
 
-
         # Create a mask for pixels greater than the trigger value
         mask = efi_data[i] > trigger_value
-
-
         masked_data = efi_data[i].where(mask)
         #masked_data.plot.pcolormesh(ax=axes[i], transform=ccrs.PlateCarree(), cmap='Blues', alpha=1, vmin=vmin_efi, vmax=vmin_efi, add_colorbar=False)
         if cl==0.18:
@@ -830,9 +806,6 @@ for i in range(5):
         else:
             line_width=1.5
         contour = axes[i].contour(masked_data.longitude, masked_data.latitude, mask, levels=[0.5], colors=colors_cl[C_L_values.index(cl)], linewidths=line_width, transform=ccrs.PlateCarree())
-
-
-
 
     # plot lon-lat box analysis as a bounding box
     #axes[i].plot([lon_lat_box_analysis[0], lon_lat_box_analysis[0], lon_lat_box_analysis[1], lon_lat_box_analysis[1], lon_lat_box_analysis[0]], [lon_lat_box_analysis[2], lon_lat_box_analysis[3], lon_lat_box_analysis[3], lon_lat_box_analysis[2], lon_lat_box_analysis[2]], color='black', linewidth=2, transform=ccrs.PlateCarree(central_longitude=0))
@@ -846,11 +819,7 @@ for i in range(5, 10):
     axes[i].add_feature(cfeature.BORDERS)
 
     ################################ plot action triggers ################################
-
-
-    ################################ plot action triggers ################################
     lead_time_triggers = combined_triggers.loc[combined_triggers.lead == lead_times[i-5]]
-
 
     # plot 3 triggers for three C_L values 
     for cl in C_L_values:
@@ -871,12 +840,8 @@ for i in range(5, 10):
             line_width=1.5
         contour = axes[i].contour(masked_data.longitude, masked_data.latitude, mask, levels=[0.5], colors=colors_cl[C_L_values.index(cl)], linewidths=line_width, transform=ccrs.PlateCarree())
 
-
-
-
     # plot lon-lat box analysis as a bounding box
     #axes[i].plot([lon_lat_box_analysis[0], lon_lat_box_analysis[0], lon_lat_box_analysis[1], lon_lat_box_analysis[1], lon_lat_box_analysis[0]], [lon_lat_box_analysis[2], lon_lat_box_analysis[3], lon_lat_box_analysis[3], lon_lat_box_analysis[2], lon_lat_box_analysis[2]], color='black', linewidth=2, transform=ccrs.PlateCarree(central_longitude=0))
-
 
 # color_bar 1
 cax1= fig.add_axes([0.07,0.55,0.01,0.3]) #[left, bottom, width, height]
@@ -897,8 +862,6 @@ legend_handles = [mlines.Line2D([], [], color=color, linewidth=2, label=f'C/L={c
 
 # Add the legend to the figure
 fig.legend(handles=legend_handles, loc='lower right', bbox_to_anchor=(1.05, 0.1), title='C/L values', title_fontsize='15', fontsize='15')
-
-##################################################### PLOT ACTION TRIGGERS #######################################################
 
 ##################################################### PLOT ACTION TRIGGERS #######################################################
 if flood_event=='WE':
@@ -925,19 +888,17 @@ if flood_event=='WE':
         #location of Bad neuenahr ahrweiler 
         #ax.scatter(7.1, 50.5, s=100, c='Green', marker='D', alpha=a_ahr, transform=ccrs.PlateCarree(central_longitude=0))
 
-if flood_event=='IT':
-    ########################### ACTIVATE COPERNICUS EMERGENCY MANAGEMENT SERVICE ################################
-    for ax in axes:
-        if plot_europe==False:
-            IT_floods.plot(ax=ax, color='yellow', alpha=a_e_IT, transform=ccrs.PlateCarree(central_longitude=0), marker="x", markersize=100)
-        #ax.scatter(7.1, 50.5, s=50, c='Green', marker='D', alpha=a_ahr, transform=ccrs.PlateCarree(central_longitude=0))
+# if flood_event=='IT':
+#     ########################### ACTIVATE COPERNICUS EMERGENCY MANAGEMENT SERVICE ################################
+#     for ax in axes:
+#         if plot_europe==False:
+#             IT_floods.plot(ax=ax, color='yellow', alpha=a_e_IT, transform=ccrs.PlateCarree(central_longitude=0), marker="x", markersize=100)
+#         #ax.scatter(7.1, 50.5, s=50, c='Green', marker='D', alpha=a_ahr, transform=ccrs.PlateCarree(central_longitude=0))
 
-if flood_event=='HALLEIN':
-    for ax in axes:
-        if plot_europe==False:
-            ax.scatter(13.1, 47.7, s=100, c='Green', marker='D', alpha=1, transform=ccrs.PlateCarree(central_longitude=0))
-
-
+# if flood_event=='HALLEIN':
+#     for ax in axes:
+#         if plot_europe==False:
+#             ax.scatter(13.1, 47.7, s=100, c='Green', marker='D', alpha=1, transform=ccrs.PlateCarree(central_longitude=0))
 
 # Add gridlines and labels to the plots
 for ax in axes:

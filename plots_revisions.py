@@ -3,19 +3,12 @@ Created on Mon Aug 31 17:04:50 2020
 
 @author: Tim Busker 
 
+This script makes the plots as presented in the paper "The Value of Precipitation forecasts to anticipate floods". Only Fig. 4 is made in another script (impacts.py)
 
 """
 
-"""
-- 1/5 jaar events zijn bijna allemaal in zomer, dus andere maanden eruit filteren. 
-- Hoe gaan we om met n=1 per pixel. Ruimtelijk poolen? Maar dan zitten we met onhafhneklijkheid 
-- voorstel: 1/1, 1/2, en 1/5 kaartje en kijken of ruimtelijke patronen houden 
--  
-- 
-"""
 # Reset all variables
 %reset
-
 
 # %%
 import sys
@@ -54,7 +47,6 @@ import pandas as pd
 ###############################################################################################################################
 
 ##################################### Paths #####################################
-
 home = "/scistor/ivm/tbr910/"  # \\scistor.vu.nl\shares\BETA-IVM-BAZIS\tbr910\ # /scistor/ivm/tbr910/
 path_base = home + "precip_analysis"
 path_obs = home + "precip_analysis/obs"
@@ -68,26 +60,26 @@ path_obs_for_new = home + "precip_analysis/obs_for_new_LT"
 path_figs = home + "precip_analysis/figures/revisions/"
 path_return_periods = "/scistor/ivm/tbr910/precip_analysis/return_periods_europe"
 
-##################################### Config  #####################################
+##################################### Config variables  #####################################
 # General config
 indicator = "efi"  # efi, sot (or ES?)
 shift = 1
 resolution = "025"
-day_month = "06_09"  # day and month seperated by an underscore
+day_month = "04_09"  # day and month seperated by an underscore
 
 # vars to load the area files 
 season = "_summer" # Empty for all seasons (extra desciption that was added to the input files in PEV.py (optional)). _season to select a specific season
-addition='_FINAL5' # _description --> for Fval graphs seasonal thresholds are not yet supported (needs change in code)
-loader=season+addition # loader for the area files
+addition='_FINAL_major' # _description --> for Fval graphs seasonal thresholds are not yet supported (needs change in code)
+loader_region=season+addition # loader for the area files
 
 # vars to load the Europe map --> for European map 
 season_EU="_seasonal" # Empty for all seasons (extra desciption that was added to the input files in PEV.py (optional)). _season to select a specific season
-addition_EU='_FINAL5' # _description
-eu_map_loader=season_EU+addition_EU # loader for the EU files
+addition_EU='_FINAL_major' # _description
+loader_EU=season_EU+addition_EU # loader for the EU files
 
 # plot config 
 log_axis=True # if True, plot the x-axis on a log scale
-# precipitation threshold
+
 """
 Define precipitation threshold, options:
 
@@ -95,12 +87,12 @@ Define precipitation threshold, options:
 - Fixed rainfall amounts (mm): 40, 60, 90 (method var: threshold_method, not implemented yet?)
 - Fixed return periods: 5RP, 10RP, 20RP (method var: return_periods)
 """
-p_threshold = "5RP"
+
+p_threshold = "5RP" # return period threshold
 expected_CF= 1/(int(p_threshold.replace("RP",""))*365) # expected coverage factor for the return period
 
-
 # C_L
-find_C_L_max = False  # if True, we want to find the PEV for the C_L ratio for which Fval is max. If false, we want to find the PEV for a specific C_L ratio (specified in C_L_best_estimate)
+find_C_L_max = False  # if True, we find the PEV for the C_L ratio for which PEV is max. If false, we want to find the PEV for a specific C_L ratio (specified in C_L_best_estimate)
 C_L_best_estimate = 0.08  # 0.08 used in paper.
 C_L_min = 0.02
 C_L_max = 0.18
@@ -109,20 +101,20 @@ C_L_max = 0.18
 ##################################### Load data #####################################
 os.chdir(path_verif)
 
-
 # Europe files
-file_accessor_EU_map = f'{day_month}_{str(p_threshold).replace(".","")}_S{shift}{eu_map_loader}.nc'  # takes already the max Fval file 
+file_accessor_EU_map = f'{day_month}_{str(p_threshold).replace(".","")}_S{shift}{loader_EU}.nc'  # takes already the max Fval file 
 Fval_merged_efi = xr.open_dataset("Fval_merged_efi_%s" % (file_accessor_EU_map)) # load seasonal or non-seasonal map
 Fval_merged_sot = xr.open_dataset("Fval_merged_sot_%s" % (file_accessor_EU_map)) # load seasonal or non-seasonal map
+
 # save name for the figures
 save_name_EU_map= f"{indicator}_{file_accessor_EU_map}"  # save name for the figures
 
 # specific area files
-file_accessor= f'{day_month}_{str(p_threshold).replace(".","")}_S{shift}{loader}.nc'  # file accessor for area files (no seasonal threshold)
+file_accessor= f'{day_month}_{str(p_threshold).replace(".","")}_S{shift}{loader_region}.nc'  # file accessor for area files (no seasonal threshold)
 Fval_region_efi = xr.open_dataset("Fval_area_merged_efi_%s" % (file_accessor))
 Fval_region_sot = xr.open_dataset("Fval_area_merged_sot_%s" % (file_accessor))
 # save name for the figures
-save_name= f"{indicator}_{file_accessor}"  # save name for the figures
+save_name_region= f"{indicator}_{file_accessor}"  # save name for the figures
 
 ################################## filter out the C_L of 1 or >1 ##################################
 # Filter out the values of C_L that are equal to 1 or greater than 1
@@ -131,16 +123,14 @@ Fval_merged_sot = Fval_merged_sot.where((Fval_merged_sot.C_L < 1), drop=True)
 Fval_region_sot = Fval_region_sot.where((Fval_region_sot.C_L < 1), drop=True)
 Fval_region_efi = Fval_region_efi.where((Fval_region_efi.C_L < 1), drop=True)
 
-
-
 ##################################### Retrieve lon lats for the ROI #####################################
 """
-lon lat boxes 
-"[2.5, 14, 47.5, 55] --> large area Western Europe (used till now)
-[3.95,7.8,49.3,51.3] --> Affected by 2021 floods
+The different options for lat/lon boxes (ROI) are:
+"[2.5, 14, 47.5, 55] --> large area Western Europe 
+[3.95,7.8,49.3,51.3] --> Affected by 2021 floods (small) --> this one was used in first submission
+[3.5,7.8,48,52] --> Affected by 2021 floods (large) --> this one is used in revisions for paper 
 [-10, 20, 39, 55] --> much larger (rondom?) area
 [1,7.8,48,52] --> area based on many events
-[3.5,7.8,48,52] --> area based on many events (excluding coastal area of france) --> used in rev.
 """
 
 # retrieve lon lat box as saved in the Fval_region file as attributes
@@ -162,8 +152,6 @@ print("lon_lat_box:", lon_lat_box)
 lon_slice = slice(lon_lat_box[0], lon_lat_box[1])  # in case of area selection
 lat_slice = slice(lon_lat_box[3], lon_lat_box[2])  # in case of area selection
 
-
-
 ################################### Load the cont metrics ###################################
 # Load contingency metrics over all seasons
 cont_efi_eu = xr.open_dataset("cont_metrics_merged_efi_%s" % (file_accessor_EU_map))
@@ -173,13 +161,8 @@ cont_sot_eu = xr.open_dataset("cont_metrics_merged_sot_%s" % (file_accessor_EU_m
 cont_efi = xr.open_dataset("cont_metrics_merged_efi_%s" % (file_accessor)) # mostly for single season
 cont_sot = xr.open_dataset("cont_metrics_merged_sot_%s" % (file_accessor)) # mostly for single season
 
-
-
-
 n_event_mask=cont_efi_eu.isel(lead=0).isel(ew_threshold=0).n_events>0 # mask for pixels with at least one event
 n_event_mask=n_event_mask.drop_vars("lead").drop_vars("ew_threshold") # drop lead and ew_threshold dimensions
-
-
 
 os.chdir(path_base)
 
@@ -217,10 +200,6 @@ cont_sot=cont_sot.where(n_event_mask)
 cont_efi_ROI=cont_efi.sel(longitude=lon_slice, latitude=lat_slice) # select the cont metrics for the ROI
 cont_sot_ROI=cont_sot.sel(longitude=lon_slice, latitude=lat_slice) # select the cont metrics for the ROI
 
-
-
-
-
 # %%
 ###############################################################################################################################
 ########################################### European Fval plot for EFI and SOT ################################################
@@ -229,12 +208,12 @@ cont_sot_ROI=cont_sot.sel(longitude=lon_slice, latitude=lat_slice) # select the 
 ########################## Select the right C_L ratio ##########################
 if find_C_L_max == True:  #  Find and select max Fval
     if indicator == "efi":
-        if 'seasonal' in eu_map_loader:
+        if 'seasonal' in loader_EU:
             Fval_plot = Fval_merged_efi.max(dim=("C_L")).Fval
         else:
             Fval_plot = Fval_merged_efi.max(dim=("C_L", "ew_threshold")).Fval
     elif indicator == "sot":
-        if 'seasonal' in eu_map_loader:
+        if 'seasonal' in loader_EU:
             Fval_plot = Fval_merged_sot.max(dim=("C_L")).Fval
         else:
             Fval_plot = Fval_merged_sot.max(dim=("C_L", "ew_threshold")).Fval
@@ -248,7 +227,7 @@ else:  # or select the Fval for a specific C_L ratio
 
     Fval_plot = Fval_plot.sel(C_L=C_L_best_estimate).Fval  # select the Fval for the C_L ratio we want to plot
     
-    if 'seasonal' not in eu_map_loader:
+    if 'seasonal' not in loader_EU:
         Fval_plot = Fval_plot.max(dim="ew_threshold")  # only needed if the max is not already calculated in the merger_seasons.py script
 
 
@@ -265,8 +244,8 @@ cmap_F = plt.cm.get_cmap("RdYlBu", 16) # colormap, colorblindfriendly
 Fval_plot = Fval_plot.sel(longitude=slice(None, 40))
 # latitude 35 degrees
 Fval_plot = Fval_plot.sel(latitude=slice(None, 35))
-########################## Start plotting ##########################
 
+########################## Start plotting ##########################
 fig = plt.figure(figsize=(20, 9))  # (W,H)
 proj0 = ccrs.PlateCarree(central_longitude=0)
 # 5 subplots (in circle)
@@ -451,7 +430,6 @@ ax5.add_patch(
     )
 )
 
-
 ################# Colorbar #################
 cax1 = fig.add_axes([0.4, 0.05, 0.3, 0.03])  # [left, bottom, width, height]
 cbar = plt.colorbar(plot1, pad=0.00, cax=cax1, orientation="horizontal", cmap=cmap_F)
@@ -462,7 +440,7 @@ cbar.set_ticks(np.round(cbar.get_ticks(), 2))
 ########################################### save ################################################
 # set title to plot 
 plt.suptitle(
-    f"Potential economic value (PEV) for {indicator} {eu_map_loader} {C_L_best_estimate} ",
+    f"Potential economic value (PEV) for {indicator} {loader_EU} {C_L_best_estimate} ",
     size=20,
 
 )
@@ -480,8 +458,6 @@ if indicator == "efi":
 
 elif indicator == "sot":
     Fval_plot = Fval_region_sot.copy()
-
-
 
 os.chdir(path_verif)
 ###################### Retrieve thresholds for EFI and SOT ######################
@@ -532,10 +508,7 @@ hex_colors = [color.hex for color in colors]
 
 cmap = mcolors.LinearSegmentedColormap.from_list("my_colormap", hex_colors)
 
-
 ###################### Generate the plot ######################
-
-
 # Define a function to plot the data
 def plot_data(
     ax,
@@ -602,7 +575,6 @@ def plot_data(
             colors="black",
     )
         
-
 # Call the function for each subplot
 plot_data(
     ax1,
@@ -693,10 +665,6 @@ plot_data(
 # Set ylabel for ax4
 ax4.set_ylabel(label_y, size=label_y_size, weight="bold")
 
-# Create custom legend
-# legend_elements = [Line2D([0], [0], color=hex_colors[thresholds_plot.index(threshold)], lw=linewidth, label='efi threshold= %s'%(str(threshold))) for threshold in legend_thresholds]
-# ax5.legend(handles=legend_elements, fontsize=label_fontsize, loc='lower right', bbox_to_anchor=(2, 0))
-
 ###################### Colorbar ######################
 cax = fig.add_axes(
     [0.25, 0.33, 0.4, 0.02]
@@ -724,11 +692,6 @@ middle_values = [
 cb.set_ticks([min(thresholds_plot)] + middle_values + [max(thresholds_plot)])
 
 
-# legend and show/save
-# ax5.legend(fontsize=label_fontsize, loc='lower right', bbox_to_anchor=(2, 0))
-# plt.savefig(path_figs+'/C_L.pdf', bbox_inches='tight')
-
-
 plt.show()
 
 
@@ -740,7 +703,6 @@ plt.show()
 os.chdir(path_verif)
 ################# Load area data from the ROI #################
 # efi
-
 Fval_efi = Fval_region_efi.Fval # defined in beginning script 
 # Fval_efi = Fval_efi.mean(
 #     dim=("longitude","latitude")
@@ -776,7 +738,7 @@ Fval_efi["ew_threshold_max"] = (
 )
 
 #################################### Step 2: retrieve the cont metrics for these ew thresholds (for C/L we want to calculate, either specific value or the one giving heighest PEV) ##################################
-lead_cont = "5 days"  # lead time for which we want to calculate the cont metrics
+lead_cont = "1 days"  # lead time for which we want to calculate the cont metrics
 
 
 ######### EFI  #########
@@ -918,7 +880,6 @@ for ax, Fval, title, n_hits, n_fa, n_misses, n_cn, hr, far, ew_threshold in zip(
             )
         )
 
-
     ax.set_xlabel("Action costs / prevented damage (C/L)", size=13, weight="bold")
     ax.set_ylabel("Forecast Value (PEV)", size=13, weight="bold")
 
@@ -948,7 +909,6 @@ for ax, Fval, title, n_hits, n_fa, n_misses, n_cn, hr, far, ew_threshold in zip(
             colors="black",
     )
         
-
     else: 
         ax.set_xticks(np.arange(0, 0.7, 0.2))
         ax.grid(True, which="both", linestyle="--", linewidth=0.7, alpha=0.6, color="black")
@@ -966,7 +926,6 @@ for ax, Fval, title, n_hits, n_fa, n_misses, n_cn, hr, far, ew_threshold in zip(
     ax.set_xlim(x_lim)
     # Add grid for both major and minor ticks
     
-
     ############################################# Add table with cont metrics #############################################
     row_labels = ["Early Warning \n Early Action", "No Warning \n No Action"]
     col_labels = [" Extreme Rainfall \n Observed", " Extreme Rainfall \n Not Observed"]
@@ -1011,9 +970,6 @@ for ax, Fval, title, n_hits, n_fa, n_misses, n_cn, hr, far, ew_threshold in zip(
         fontstyle="italic",
     )
 
-    # Add the hit rate and false alarm rate
-    # ax.text(0.5, 0.9, f'Hit Rate: {hr:.2f}', size=12, ha='center', transform=ax.transAxes)
-    # ax.text(0.5, 0.9, f'False Alarm Rate: {far:.2f}', size=12, ha='center', transform=ax.transAxes)
 
     ax.set_title(title, weight="bold")  # set title
 
@@ -1051,203 +1007,15 @@ fig.legend(
     bbox_to_anchor=(1.21, -0.1),
 )
 
-plt.savefig(path_figs + "PEV_GRAPH_%s_%s.pdf" % (save_name,C_L_best_estimate), bbox_inches="tight")
-
+plt.savefig(path_figs + "PEV_GRAPH_%s_%s.pdf" % (save_name_region,C_L_best_estimate), bbox_inches="tight")
 plt.show()
 plt.close()
-# %%
+
 ###############################################################################################################################
-########################################### Hits and False Alarms plot ########################################################
+########################################### Rainfall return period and n-event plots ####################################################
 ###############################################################################################################################
-
-if indicator == "sot":
-    Fval_plot = Fval_sot.copy()
-    cont_plot = cont_sot_ROI.copy()
-    cl_ratios = Fval_plot.C_L.values
-
-if indicator == "efi":
-    Fval_plot = Fval_efi.copy()
-    cont_plot = cont_efi_ROI.copy()
-    cl_ratios = Fval_plot.C_L.values
-
- 
-################################################### FIND CONT METRICS OVER CL RANGE ########################################################
-cont_dataframe = pd.DataFrame(
-    columns=[
-        "lead",
-        "C_L",
-        "ew_threshold",
-        "n_fa",
-        "n_hits",
-        "n_misses",
-        "n_cn",
-        "far",
-        "hr",
-    ]
-)
-
-
-for lead_cont in lead_times:
-    Fval_lead = Fval_plot.sel(lead=lead_cont)
-    cont_lead = cont_plot.sel(lead=lead_cont)
-    for CL in cl_ratios:
-
-        # retrieve ew threshold for the CL that gives max Fval
-        PEV_cont = Fval_lead.sel(C_L=CL)
-        ew_max = PEV_cont.ew_threshold_max.values
-        cont_max = cont_lead.sel(ew_threshold=ew_max).sum(
-            dim=("latitude", "longitude")
-        )  # before it was mean, now sum to get the total number of events
-
-        n_fa = float(cont_max.false_alarms.values)  # false alarms
-        n_hits = float(cont_max.hits.values)  # hits
-        n_misses = float(cont_max.misses.values)  # misses
-        n_cn = float(cont_max.correct_negatives.values)  # correct negatives
-        far = n_fa / (n_fa + n_cn)  # false alarm rate
-        hr = n_hits / (n_hits + n_misses)  # hit rate
-
-        # add those to the dataframe (append is depreciated!!)
-        cont_dataframe.loc[len(cont_dataframe)] = [
-            lead_cont,
-            CL,
-            ew_max,
-            n_fa,
-            n_hits,
-            n_misses,
-            n_cn,
-            far,
-            hr,
-        ]
-
-
-############################################  Start plotting #############################################
-# Create a figure with 2 rows and 2 columns of subplots
-fig, axs = plt.subplots(2, 1, figsize=(10, 10), sharex=True, sharey=True)
-plt.subplots_adjust(wspace=0.2, hspace=0.3)
-
-# Define the colors
-colors = sns.color_palette("viridis", 5)
-
-# Sample the C/L ratios
-cl_ratios_sampled = np.linspace(
-    cont_dataframe["C_L"].min(), cont_dataframe["C_L"].max(), 11
-)
-
-# Loop over the lead times
-for i, lead in enumerate(cont_dataframe["lead"].unique()):
-    # Filter the dataframe for the current lead time
-    df_lead = cont_dataframe[cont_dataframe["lead"] == lead]
-
-    # Plot the number of false alarms and number of hits for EFI
-    axs[0].plot(
-        df_lead["C_L"],
-        df_lead["n_hits"],
-        color=colors[i],
-        linewidth=3,
-        alpha=0.7,
-        label=f"Lead: {lead} days",
-    )
-    axs[1].plot(
-        df_lead["C_L"],
-        df_lead["n_fa"],
-        color=colors[i],
-        linewidth=3,
-        alpha=0.7,
-        linestyle="--",
-    )
-
-
-# Set the labels, title, and other properties of the subplots
-for ax, title in zip(
-    axs.flat,
-    ["%s Number of Hits" % (indicator), "%s Number of False Alarms" % (indicator)],
-):
-    ax.set_xlabel("Action costs / prevented damage (C/L)", size=13, weight="bold")
-    ax.set_ylabel("Counts", size=13, weight="bold")
-    ax.set_xticks(np.round(cl_ratios_sampled, 1))
-    ax.tick_params(
-        axis="both",
-        which="both",
-        direction="out",
-        length=6,
-        labelsize=13,
-        colors="black",
-    )
-    ax.grid(True, which="both", linestyle="--", linewidth=0.7, alpha=0.6)
-    ax.set_title(title, weight="bold", size=15)
-    ax.legend()
-
-# Limit the y-axis for the number of hits plots
-axs[0].set_ylim(0, cont_dataframe.n_hits.max())  # replace 100 with the desired upper limit
-axs[1].set_ylim(0, cont_dataframe.n_hits.max())  # replace 100 with the desired upper limit
-
-plt.savefig(path_figs + "HITS_FA_%s.pdf" % (save_name), bbox_inches="tight")
-# Display the figure
-plt.show()
-
-
-# %%
-###############################################################################################################################
-########################################### Rainfall thresholds plot  ########################################################
-###############################################################################################################################
-
-####################################### Percentiles #######################################
-
-# if "RP" not in p_threshold:  # plot percentiles
-#     ############################################ Percentile plots  #############################################
-#     # make a 4x4 percentile plot for the 4 seasons (DJF, MAM, JJA, SON)
-#     import matplotlib.colors as colors
-
-#     precip_q = xr.open_dataset(path_q + "/precip_q_%s_seasonal.nc" % (resolution))
-#     precip_q = precip_q.rr.sel(quantile=p_threshold)
-
-#     # precip_q.sel(quantile=p_threshold).rr.plot.imshow(vmin=0,vmax=20)
-
-#     # costum ECMWF colormap
-#     hex_ecmwf = [
-#         "#0c0173",
-#         "#226be5",
-#         "#216305",
-#         "#39af07",
-#         "#edf00f",
-#         "#f0ce0f",
-#         "#f08c0f",
-#         "#f0290f",
-#         "#e543e7",
-#         "#601a61",
-#     ]
-#     colors = [matplotlib.colors.to_rgb(i) for i in hex_ecmwf]
-#     n_bin = len(hex_ecmwf)
-#     cmap_P = LinearSegmentedColormap.from_list("cmap_ECMWF", colors, N=n_bin)
-
-#     # Create a 2x2 grid of subplots
-#     fig, axs = plt.subplots(nrows=2, ncols=2, figsize=(10, 10))
-#     plt.subplots_adjust(hspace=0.3)
-#     # Flatten the axes array so we can iterate over it
-#     axs = axs.flatten()
-
-#     # Plot each season on a different subplot
-#     for i, season in enumerate(precip_q.season.values):
-#         plot = precip_q.sel(season=season).plot(
-#             ax=axs[i], vmin=0, vmax=50, add_colorbar=False, cmap=cmap_P
-#         )
-#         axs[i].set_title(season, size=20)
-#     # Add a colorbar
-#     cax = fig.add_axes([0.95, 0.3, 0.01, 0.4])  # [left, bottom, width, height]
-#     cbar = plt.colorbar(plot, pad=0.00, cax=cax, orientation="vertical")
-#     cbar.set_label(label="Precipitation (mm/24h)", size="20", weight="bold")
-#     cbar.ax.tick_params(labelsize=15)
-
-#     # save to pdf
-#     plt.suptitle(
-#         f"Precipitation for different seasons (p_threshold: {p_threshold})", size=24
-#     )
-#     plt.savefig(path_figs + "q_eu_map_%s.pdf" % (p_threshold), bbox_inches="tight")
-#     plt.show()
-
 
 ########################################## load and process n-event data ##########################################
-
 # reload cont_efi_eu
 cont_efi_eu = xr.open_dataset("cont_metrics_merged_efi_%s" % (file_accessor_EU_map))
 # Filter out the pixels with 0 events
@@ -1264,23 +1032,19 @@ lat_min = cont_efi_eu.latitude.min().item()
 lat_max = cont_efi_eu.latitude.max().item()
 
 ############################################# Load and process precip ########################################################
-
 precip_q = xr.open_dataset(
     path_return_periods
     + f"/precipitation-at-fixed-return-period_europe_e-obs_30-year_{p_threshold[:-2]}-yrs_1989-2018_v1.nc"
 )  # not used for threshold method, but still given to make the c_mask
 
-
-
 ############################################# Rainfall map ########################################################
-
 # Create a 2-column subplot
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 10), subplot_kw={"projection": ccrs.PlateCarree()})
 proj0 = ccrs.PlateCarree(central_longitude=0)
 
 # Plotting precipitation quantiles on the left subplot
 # blue-red cmap
-cmap = plt.get_cmap("Blues")
+cmap = plt.get_cmap("BrBG")
 precip_plot = precip_q[f"r{p_threshold[:-2]}yrrp"].plot.pcolormesh(
     ax=ax1, 
     transform=ccrs.PlateCarree(central_longitude=0), 
@@ -1384,8 +1148,8 @@ plt.close()
 
 #%%
 ###############################################################################################################################
-########################################### EW threshold per lead time for each season  ########################################################
-
+########################################### EW threshold per lead time for each season  #######################################
+###############################################################################################################################
 os.chdir(path_verif)
 
 # reload the data
@@ -1551,14 +1315,7 @@ plt.xticks(np.arange(0, 0.7, 0.2), size=15)
 plt.yticks(np.arange(0.2, 0.7, 0.2), size=15)
 plt.title("lead=%s days" % (lead+1), size=20)
 plt.legend(fontsize=15, loc="lower right", bbox_to_anchor=(1.1, 0))
-plt.savefig(path_figs + "ES_comparison_graph_%s_%s.pdf" % (save_name,C_L_best_estimate), bbox_inches="tight")
+plt.savefig(path_figs + "ES_comparison_graph_%s_%s.pdf" % (save_name_region,C_L_best_estimate), bbox_inches="tight")
 plt.show()
 
-
-
-
-
-
-
-.2
 
